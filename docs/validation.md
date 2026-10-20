@@ -27,3 +27,11 @@ No ejecutado: compilación Arduino, carga por USB, lectura física DHT11, recone
 Los datos presentes en PostgreSQL son sintéticos; no provienen del sensor físico. No interpretar sus valores como condiciones reales de una unidad móvil. Las advertencias TestClient/httpx no impiden las pruebas, pero conviene migrar el cliente de pruebas cuando se actualice el stack.
 
 Para repetir instalación, pruebas y simulación, ver README y local-deployment.md. La suite PostgreSQL borra tablas solo en la base dedicada monitor_test; no ejecutarla contra monitor.
+
+## Actualización física — 20 de octubre de 2026
+
+Se decodificó el ELF exacto del panic original y se localizó un Interrupt WDT en la lectura DHT de Adafruit. Se sustituyó esa lectura por BoundedDHT.h, con tiempos reales y aborto inmediato al primer timeout, y se añadió diagnóstico Wi-Fi/reset.
+
+Compilación para ESP32S3 Dev Module, flash 16 MB, PSRAM deshabilitada y USB CDC habilitado: correcta. Carga física por COM4: correcta, con hashes verificados. Captura posterior de 45 s: Wi-Fi asociado y con IP 192.168.20.146, RSSI -32 dBm, cinco lecturas DHT inválidas y ningún nuevo panic/reinicio espontáneo. La API local respondió 200 en /health.
+
+Pendiente: obtener lecturas físicas válidas del DHT11, ingestión HTTP desde este ESP32, reconexión real al interrumpir Wi-Fi y ensayo prolongado de estabilidad. Los datos históricos de pruebas simuladas no demuestran esos puntos. Detalles y perfil de compilación en wifi-troubleshooting.md.

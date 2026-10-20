@@ -55,12 +55,12 @@ backend/
   tests/{conftest.py,test_api.py}
   alembic.ini, requirements.txt, Dockerfile
 frontend/{templates/index.html,static/app.js,static/style.css}
-firmware/esp32_dht_monitor/{esp32_dht_monitor.ino,config.example.h}
+firmware/esp32_dht_monitor/{esp32_dht_monitor.ino,BoundedDHT.h,config.example.h}
 scripts/{setup_env.py,simulate.py,reconcile_csv.py,verify_csv.py}
 docs/{architecture,database,hardware,local-deployment,cloud-migration,validation}.md
 compose.yaml, .env.example, .gitignore, .dockerignore
 ```
 
-Guías: [arquitectura](docs/architecture.md), [datos y verificación CSV](docs/database.md), [conexión ESP32 físico](docs/hardware.md), [Windows y Ubuntu local/VM](docs/local-deployment.md), [fase de nube, backups y seguridad](docs/cloud-migration.md), [resultados reales](docs/validation.md).
+Guías: [arquitectura](docs/architecture.md), [datos y verificación CSV](docs/database.md), [conexión ESP32 físico](docs/hardware.md), [diagnóstico Wi-Fi y reinicios](docs/wifi-troubleshooting.md), [Windows y Ubuntu local/VM](docs/local-deployment.md), [fase de nube, backups y seguridad](docs/cloud-migration.md), [resultados reales](docs/validation.md).
 
 Repositorio: https://github.com/didcasva/Actividad_1_IoT_IA.git. La configuración real de red y credenciales se mantiene exclusivamente en .env y config.h, excluidos de Git.

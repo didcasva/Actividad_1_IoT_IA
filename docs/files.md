@@ -1,6 +1,6 @@
 # Archivos del proyecto
 
-Inventario real de fuentes y documentación. El PDF original se conserva sin cambios; .env local está ignorado por Git.
+Inventario real de fuentes y documentación. El PDF original se conserva sin cambios; .env y config.h locales están ignorados por Git.
 
 ```text
 .dockerignore
@@ -30,9 +30,12 @@ compose.yaml
 docs/architecture.md
 docs/cloud-migration.md
 docs/database.md
+docs/files.md
 docs/hardware.md
 docs/local-deployment.md
 docs/validation.md
+docs/wifi-troubleshooting.md
+firmware/esp32_dht_monitor/BoundedDHT.h
 firmware/esp32_dht_monitor/config.example.h
 firmware/esp32_dht_monitor/esp32_dht_monitor.ino
 frontend/static/Chart.LICENSE.md
@@ -44,5 +47,4 @@ scripts/reconcile_csv.py
 scripts/setup_env.py
 scripts/simulate.py
 scripts/verify_csv.py
-docs/files.md
 ```

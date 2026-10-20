@@ -39,14 +39,14 @@ En Arduino IDE instalar `esp32 by Espressif Systems` en el gestor de placas; el 
 
 Seleccionar el modelo exacto o `ESP32S3 Dev Module` para una placa genérica compatible. Conservar Flash Size/PSRAM según el módulo real; no adivinar esos valores. Para USB nativo: `USB CDC On Boot: Enabled`, `Upload Mode: UART0 / Hardware CDC`. Si se conecta mediante puente USB-UART las opciones de USB nativo no aplican de la misma forma. [Referencia oficial de Espressif](https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/cdc_dfu_flash.html).
 
-Instalar DHT sensor library (Adafruit), Adafruit Unified Sensor y ArduinoJson 7. Abrir el sketch del proyecto y editar exclusivamente config.h para la configuración real. Verificar antes de subir. Si no conecta: mantener BOOT, pulsar y soltar RESET/EN, soltar BOOT, seleccionar el puerto que aparezca y subir; reiniciar después de la primera carga. Monitor serie a 115200.
+Instalar ArduinoJson 7. El lector DHT11/DHT22 está incluido en BoundedDHT.h y no requiere una biblioteca DHT externa. Abrir el sketch del proyecto y editar exclusivamente config.h para la configuración real. Verificar antes de subir. Si no conecta: mantener BOOT, pulsar y soltar RESET/EN, soltar BOOT, seleccionar el puerto que aparezca y subir; reiniciar después de la primera carga. Monitor serie a 115200. Para el fallo watchdog observado y el perfil exacto de prueba, ver [wifi-troubleshooting.md](wifi-troubleshooting.md).
 
 El 17 de octubre se detectó COM3, pero esptool no recibió respuesta al identificar la placa. No se compiló ni grabó el firmware en esa comprobación. config.h local usa DEVICE_CODE UM1, registrado en la base local para evitar un 404. El ejemplo fue restaurado a valores ficticios; la configuración real se conservó en config.h, ignorado por Git.
 
 Conectar con el equipo sin alimentación. Para el sensor DHT11 desnudo, mirando la rejilla de frente, verificar además el pinout del fabricante: pin 1 VCC a 3.3 V, pin 2 DATA a GPIO4, pin 3 sin conectar, pin 4 GND a GND. Pull-up 4.7–10 kΩ entre DATA y 3.3 V si no está integrada. En módulos de tres pines seguir las etiquetas VCC/DATA/GND: su orden puede variar. No aplicar 5 V al GPIO del ESP32.
 
 1. Arduino IDE: instalar la plataforma **esp32 by Espressif Systems** y seleccionar el modelo real de placa y su puerto COM.
-2. Instalar bibliotecas **DHT sensor library by Adafruit**, **Adafruit Unified Sensor**, **ArduinoJson 7**.
+2. Instalar **ArduinoJson 7**. El lector DHT con tiempos de espera acotados está incluido en el proyecto.
 3. Copiar `config.example.h` como `config.h` junto al sketch. Este archivo está ignorado por Git.
 4. Configurar SSID y clave del Wi-Fi/hotspot 2.4 GHz. PC servidor y ESP32 deben poder comunicarse; algunas redes de invitados aíslan clientes.
 5. Configurar API_URL con la IP LAN del PC (`ipconfig` en Windows, `hostname -I` en Ubuntu), puerto 8000 y ruta /api/v1/readings. Desde el ESP32 localhost apunta al propio ESP32.
@@ -74,4 +74,4 @@ Prueba física pendiente: comparar una medición con un instrumento de referenci
 
 La cola persiste tras reinicio. Cambiar DEVICE_CODE con una cola pendiente reasigna esas muestras al nuevo código: vaciarla antes de cambiar de unidad. No cambiar el formato de la estructura sin migrar/versionar la cola.
 
-No se ha cargado ni probado el firmware en el ESP32 físico desde este entorno.
+Actualización del 20 de octubre: se compiló y cargó el firmware en el ESP32-S3 físico, se verificó conexión Wi-Fi y se observó ejecución durante 45 s sin el panic anterior. El DHT11 sigue devolviendo lecturas inválidas; su cableado y la primera muestra física válida están pendientes. Ver [diagnóstico y resultados](wifi-troubleshooting.md).
