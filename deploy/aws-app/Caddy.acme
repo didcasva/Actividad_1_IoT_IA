@@ -1,0 +1,12 @@
+{
+	auto_https off
+}
+:80 {
+	handle /.well-known/acme-challenge/* {
+		root * /var/www/certbot
+		file_server
+	}
+	handle {
+		respond "Preparando HTTPS de Ruta Salud" 404
+	}
+}

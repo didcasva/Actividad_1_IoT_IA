@@ -1,0 +1,22 @@
+name: rutasalud-db
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: monitor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure la clave administrativa}
+      MONITOR_PASSWORD: ${MONITOR_PASSWORD:?Configure la clave de la aplicacion}
+    ports:
+      - "${DB_BIND_IP:?Configure la IP privada}:${DB_PUBLISH_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-app.sql:/docker-entrypoint-initdb.d/10-app.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U monitor -d monitor"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  postgres_data:

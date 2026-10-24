@@ -1,0 +1,29 @@
+{
+	auto_https off
+	default_sni {$PUBLIC_IP}
+}
+http://{$PUBLIC_IP} {
+	handle /.well-known/acme-challenge/* {
+		root * /var/www/certbot
+		file_server
+	}
+	handle {
+		redir https://{$PUBLIC_IP}{uri} permanent
+	}
+}
+https://{$PUBLIC_IP} {
+	tls /tls/current/fullchain.pem /tls/current/privkey.pem
+	@ingest {
+		method POST
+		path /api/v1/readings
+	}
+	handle @ingest {
+		reverse_proxy api:8000
+	}
+	handle {
+		basic_auth {
+			{$DASHBOARD_USERNAME} {$DASHBOARD_PASSWORD_HASH}
+		}
+		reverse_proxy api:8000
+	}
+}

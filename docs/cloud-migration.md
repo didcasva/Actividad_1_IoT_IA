@@ -1,30 +1,36 @@
 # Segunda fase: AWS y MQTT
 
-La integración MQTT local está descrita en [mqtt.md](mqtt.md). No se ha realizado un despliegue público en AWS. El Compose actual sirve para la LAN; el requisito académico de aplicación en subred pública y base de datos en subred privada requiere separar los servicios entre hosts de AWS.
+La arquitectura académica separa aplicación/broker en una EC2 de subred pública y PostgreSQL en una EC2 de subred privada. El usuario confirmó Docker en la pública, PostgreSQL saludable en la privada y autenticación SQL desde la pública. La dirección elástica es `3.231.16.96`; las direcciones privadas son `192.168.0.200` (aplicación) y `192.168.1.142` (BD).
 
-Diseño propuesto: EC2 Ubuntu en subred pública con IP elástica, reverse proxy HTTPS, API/dashboard, receptor MQTT y broker Mosquitto con TLS; PostgreSQL en una EC2 de subred privada sin IP pública. El grupo de seguridad de la BD autoriza 5432 solamente desde el grupo de la aplicación. Configurar `DATABASE_URL` con el DNS/IP privado de la BD y un rol SQL propio. En ese despliegue no iniciar el servicio `db` local del Compose; preparar archivos Compose separados y ejecutar las migraciones contra la BD privada. Esta configuración AWS todavía está pendiente.
+Usar las guías y Compose separados:
 
-Mosquitto necesita listener MQTT TLS, certificados válidos y restricciones por topic como las del laboratorio. En el firmware activar `MQTT_TLS=1`, configurar `MQTT_CA_CERT` y el puerto TLS; la ruta de código existe pero no ha sido ensayada con un broker TLS. El receptor usa TCP sin TLS dentro de la red Docker local; una conexión a un broker externo requiere adaptar también su cliente/configuración TLS. AWS IoT Core puede sustituir al broker propio si se elige ese servicio; no se han creado recursos ni certificados de IoT Core.
+- [PostgreSQL privado](../deploy/aws-db/README.md): volumen persistente, enlace a IP privada y rol `monitor` sin superusuario ni creación de roles/bases.
+- [Aplicación pública, HTTPS por IP y MQTT TLS](../deploy/aws-app/README.md): Caddy, API, migraciones, Mosquitto y receptor; conexión a la BD externa.
+- [MQTT local](mqtt.md): entorno LAN y pruebas físicas anteriores. El Compose raíz no configura el despliegue público.
 
-Antes de publicar: dominio y DNS hacia la VM; reverse proxy Caddy o Nginx con certificado HTTPS; publicar 80/443 para web y 8883 para MQTT TLS con acceso controlado, enlazar api a 127.0.0.1:8000; SSH restringido. No publicar MQTT 1883. En el host privado, publicar PostgreSQL únicamente sobre su IP privada para los servicios autorizados por el grupo de seguridad. Añadir autenticación de lectura/dashboard, límites de tasa y credenciales por dispositivo con rotación. La API actual comparte una clave y las consultas son públicas dentro de la LAN: no exponerla así a Internet.
+La instalación por IP utiliza certificados públicos de Let's Encrypt y Certbot, sin exigir un dominio. El timer renueva y recarga los certificados de ambos servicios. El dashboard y sus consultas requieren contraseña; el POST HTTPS conserva su API key. MQTT publica únicamente 8883 con TLS, usuarios separados y permisos por topic. El listener 1883 solo existe dentro de Docker; la API se enlaza al loopback del host. El enlace PostgreSQL usa la VPC y sus grupos de seguridad; no se configura TLS SQL en esta plantilla.
 
-Para la ruta HTTP heredada, cambiar firmware a HTTPS con validación CA mediante WiFiClientSecure; nunca usar setInsecure. HTTP y el listener MQTT 1883 actuales son para la LAN de laboratorio: sus credenciales viajan sin cifrar. Elegir conectividad del vehículo (router/hotspot con Internet) y evaluar períodos sin cobertura mayores a la capacidad de la cola.
+La configuración pública se probó localmente con PostgreSQL en otro proyecto Docker, una CA de pruebas y puertos de loopback. Esto no demuestra despliegue AWS ni emisión ACME pública. La emisión remota, renovación ACME y captura ESP32→AWS deben comprobarse siguiendo la guía y registrando sus resultados en [validation.md](validation.md).
 
-Inyectar DATABASE_URL/API_KEY mediante variables o gestor de secretos, con permisos restringidos para .env. Separar credencial de migración y rol de aplicación, minimizar permisos SQL. Ejecutar migraciones antes de iniciar nuevas versiones. Establecer backups, retención, monitorización y pruebas de restauración. El CSV sigue siendo una proyección recuperable de la BD.
+Para el ESP32, generar el archivo privado MQTT TLS y copiarlo al sketch cuando los servicios remotos estén saludables. Mantener Wi-Fi de 2.4 GHz con salida a Internet/NTP y validar CA e identidad del servidor. No utilizar `setInsecure()`. La ruta HTTP heredada del firmware utiliza HTTP para LAN; para el despliegue descrito se usa MQTT TLS. No apuntar ese transporte HTTP sin cifrar a Internet.
 
-Backup dentro del contenedor para evitar corrupción por redirección binaria de PowerShell antiguo:
+El rol `monitor` posee la BD para ejecutar migraciones. Una ampliación debe separar permisos de migración/ejecución, añadir límites de tasa y rotación de credenciales, y evaluar cobertura móvil, monitoreo y colas para interrupciones superiores a diez minutos. AWS IoT Core no forma parte de esta instalación; se utiliza Mosquitto en EC2.
 
-```sh
-docker compose exec db pg_dump -U monitor -d monitor -Fc -f /tmp/monitor.dump
-docker compose cp db:/tmp/monitor.dump ./monitor.dump
+## Respaldos y restauración
+
+En la EC2 privada, desde la carpeta que contiene su Compose (por ejemplo `~/rutasalud-db`):
+
+```bash
+sudo docker compose exec -T db pg_dump -U postgres -d monitor -Fc -f /tmp/monitor.dump
+sudo docker compose cp db:/tmp/monitor.dump ./monitor.dump
 ```
 
-Restaurar en una base nueva, sin destruir la original:
+Copiar el respaldo fuera de la instancia y del repositorio, con almacenamiento cifrado y retención. Para ensayar una restauración sin modificar la BD original, crear otra base con el administrador (el rol `monitor` no puede crear bases):
 
-```sh
-docker compose exec db createdb -U monitor monitor_restore
-docker compose cp ./monitor.dump db:/tmp/monitor.dump
-docker compose exec db pg_restore -U monitor -d monitor_restore /tmp/monitor.dump
+```bash
+sudo docker compose exec -T db createdb -U postgres -O monitor monitor_restore
+sudo docker compose cp ./monitor.dump db:/tmp/monitor.dump
+sudo docker compose exec -T db pg_restore -U postgres -d monitor_restore /tmp/monitor.dump
 ```
 
-Validar conteos en monitor_restore antes de cambiar DATABASE_URL. Reconstruir CSV después de restaurar. Guardar backups fuera de la VM y del repositorio, cifrados, con una política de retención y recuperación ensayada.
+Comparar conteos y datos restaurados antes de cambiar cualquier `DATABASE_URL`. El CSV es una proyección recuperable de PostgreSQL; ejecutar reconciliación en la aplicación después de una restauración. Nunca usar `docker compose down -v` para actualizar una instalación con datos.

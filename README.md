@@ -27,8 +27,15 @@ Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor 
 - Suite de 29 pruebas backend aprobada con PostgreSQL en una base de pruebas independiente. Ingestión MQTT y permisos comprobados con mensajes sintéticos en un despliegue aislado.
 - Firmware MQTT compilado y cargado en la ESP32-S3 física por COM4. Captura real de UM1 por MQTT y acuses de guardado PostgreSQL/CSV verificados; las pruebas HTTP anteriores también se conservan como evidencia.
 - Guía de instalación en Ubuntu Server con Oracle VirtualBox disponible; la ejecución y validación en esa VM están pendientes.
+- AWS: PostgreSQL privado instalado y conexión desde la EC2 pública confirmados por el usuario. Configuración separada de aplicación con HTTPS por IP, MQTT TLS y renovación de certificados probada localmente; despliegue público y captura física en AWS pendientes.
 
-Los ensayos y sus límites están registrados en [validación](docs/validation.md), [captura física](docs/real-device.md) y [recuperación de Docker](docs/docker-recovery.md). La recuperación controlada tras interrupciones de Wi-Fi, la estabilidad prolongada y las pruebas en vehículo siguen pendientes. El despliegue en nube corresponde a una fase posterior.
+Los ensayos y sus límites están registrados en [validación](docs/validation.md), [captura física](docs/real-device.md) y [recuperación de Docker](docs/docker-recovery.md). La recuperación controlada tras interrupciones de Wi-Fi, la estabilidad prolongada y las pruebas en vehículo siguen pendientes.
+
+## Instalación en AWS: dos EC2
+
+Seguir la [guía de aplicación pública HTTPS y MQTT TLS](deploy/aws-app/README.md) para la IP elástica `3.231.16.96` y la [guía de PostgreSQL privado](deploy/aws-db/README.md) para `192.168.1.142`. La aplicación se conecta a la base por la VPC. El dashboard requiere contraseña; el broker público usa 8883 con TLS y ACL por dispositivo. Los certificados por IP se renuevan automáticamente mediante systemd.
+
+Usar `deploy/aws-app/compose.yaml` con su propio `.env` generado por `scripts/setup_aws_app.py`. El Compose raíz sigue destinado a la LAN. No copiar credenciales locales al repositorio ni iniciar otra BD en el servidor público. La guía incluye emisión del certificado, migraciones, registro de UM1 y cambio del ESP32 a la nube.
 
 ## Instalación en Ubuntu Server / VirtualBox
 
@@ -137,6 +144,8 @@ firmware/esp32_dht_monitor/mqtt.config.example.h
 mqtt/mosquitto.conf
 backend/app/mqtt_worker.py, backend/app/services/mqtt_ingestion.py
 scripts/{setup_env.py,setup_mqtt.py,simulate.py,reconcile_csv.py,verify_csv.py,verify_device.py,verify_mqtt.py}
+scripts/{aws_common.py,setup_aws_app.py,aws_certificate.py,register_device.py}
+deploy/{aws-db,aws-app}/
 docs/{architecture,database,hardware,local-deployment,ubuntu-virtualbox}.md
 docs/{mqtt,real-device,wifi-troubleshooting,docker-recovery,cloud-migration,validation,files}.md
 compose.yaml, .env.example, .gitignore, .dockerignore

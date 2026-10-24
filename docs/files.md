@@ -30,6 +30,16 @@ backend/tests/conftest.py
 backend/tests/test_api.py
 backend/tests/test_mqtt.py
 compose.yaml
+deploy/aws-app/.env.example
+deploy/aws-app/Caddy.acme
+deploy/aws-app/Caddyfile
+deploy/aws-app/README.md
+deploy/aws-app/compose.yaml
+deploy/aws-app/mosquitto.conf
+deploy/aws-db/.env.example
+deploy/aws-db/README.md
+deploy/aws-db/compose.yaml
+deploy/aws-db/init-app.sql
 docs/architecture.md
 docs/cloud-migration.md
 docs/database.md
@@ -52,7 +62,11 @@ frontend/static/chart.umd.min.js
 frontend/static/style.css
 frontend/templates/index.html
 mqtt/mosquitto.conf
+scripts/aws_certificate.py
+scripts/aws_common.py
 scripts/reconcile_csv.py
+scripts/register_device.py
+scripts/setup_aws_app.py
 scripts/setup_env.py
 scripts/setup_mqtt.py
 scripts/simulate.py
@@ -60,3 +74,5 @@ scripts/verify_csv.py
 scripts/verify_device.py
 scripts/verify_mqtt.py
 ```
+
+Total: 70 archivos de fuentes y documentación.
