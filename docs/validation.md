@@ -43,3 +43,21 @@ Se observaron por COM4 lecturas de 27.1 °C / 72 %RH y respuestas POST 200. scri
 PostgreSQL y CSV coincidieron exactamente en 389 filas en la comprobación final. node --check frontend/static/app.js y git diff --check pasaron. Se reconstruyó y arrancó la API con los cambios del dashboard. No se volvió a ejecutar la suite backend porque este cambio no altera su lógica; los resultados pytest anteriores siguen documentados en su ensayo original.
 
 Esto completa la verificación física de lectura, ingestión y visualización que estaba pendiente en el ensayo anterior. Siguen pendientes la interrupción controlada de Wi-Fi con recuperación NVS, la estabilidad prolongada, las pruebas en vehículo y Ubuntu.
+
+## Extensión MQTT — 24 de octubre de 2026
+
+Se incorporaron Mosquitto y receptor Python mediante el perfil Compose `mqtt`. Pruebas backend con PostgreSQL en base independiente: **29 pasaron** en 2.81 s; una advertencia de deprecación de TestClient/httpx. Incluyen idempotencia HTTP/MQTT, discrepancia topic/dispositivo, JSON/rangos inválidos y ausencia de ACK de guardado cuando falla CSV después del commit SQL.
+
+En el proyecto aislado `taller1-mqtt-test`, con puertos 18000/18884 y volúmenes propios, se publicaron mensajes sintéticos de UM1. Se comprobó recepción MQTT real en Mosquitto, acuse `stored`, una sola fila PostgreSQL/CSV al repetir, rechazo de publicación en otra unidad y rechazo de JSON/identidad inválidos. También se comprobaron rechazo de ACK falsificado por el usuario del dispositivo y conexiones anónimas/con contraseña incorrecta. Estos mensajes no provienen del sensor.
+
+Con el receptor detenido se publicó otra muestra, se reinició el broker conservando su volumen y se inició el receptor: se recuperó exactamente una fila, sin necesidad de republicar. También se ensayó publicar con PostgreSQL detenido en el entorno aislado y verificar su recuperación al restablecerlo. El ensayo de fallos de servidor no equivale a interrumpir físicamente el Wi-Fi del ESP32.
+
+Antes de activar MQTT en el proyecto principal se respaldaron PostgreSQL y CSV en `.backups/mqtt-upgrade-20261024`. Se preservaron **1543 mediciones** y la comparación exacta SQL/CSV. Ningún mensaje de los ensayos MQTT aislados fue insertado en ese histórico. API, DB, broker y receptor quedaron saludables.
+
+El sketch MQTT compiló para `esp32:esp32:esp32s3`, core 3.3.12, flash 16 MB, PSRAM deshabilitada, USB CDC habilitado, ArduinoJson 7 y MQTT 2.5.3: 929965 bytes de programa (70 %) y 50168 bytes globales (15 %). También compiló la variante HTTP sin `mqtt.config.h`: 1024789 bytes (78 %) y 50232 bytes globales (15 %).
+
+Después de conectar el ESP32 por USB se cargó la versión MQTT por COM4, con hashes de flash verificados. Se observaron por Serial lecturas DHT11 válidas, publicaciones aceptadas por broker y confirmaciones de guardado con cola en cero. Tres nuevas mediciones de UM1, IDs 1563, 1564 y 1565, fueron recibidas a las 08:53:16, 08:53:26 y 08:53:36 (America/Bogota), con 28.9/29.0 °C y 70 %RH. Las secuencias 4, 5 y 6 aparecen en los logs de `mqtt-worker` con esas mismas IDs, lo que vincula la consulta HTTP de observación con la ingestión MQTT real.
+
+Los registros serie locales están en `.backups/mqtt-upgrade-20261024`, fuera de Git. Abrir la conexión USB para observar puede provocar un reinicio USB controlado (motivo 11); no se atribuye a un panic espontáneo. No se han validado TLS, AWS, estabilidad prolongada ni cobertura en vehículo.
+
+Se interrumpió el broker durante aproximadamente 20 s con el ESP32 físico encendido. Al restablecerlo se observaron reconexión, hasta tres muestras pendientes y descenso de la cola a cero únicamente tras acuses de aplicación. Las secuencias 18, 19 y 20 quedaron con IDs 1577, 1578 y 1579; el reintento de la secuencia 18 reutilizó ID 1577. Consulta de grupos duplicados por unidad/boot/secuencia: cero. Comparación al cierre de ese ensayo: **1585 filas PostgreSQL/CSV coincidentes**, incluyendo nuevas mediciones físicas y conservando las anteriores. Esta prueba cubre interrupción MQTT, no apagado del ESP32 con cola ni pérdida real de Wi-Fi.

@@ -6,4 +6,5 @@
 *.pdf
 data
 .backups
+.secrets
 firmware

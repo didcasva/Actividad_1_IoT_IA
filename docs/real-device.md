@@ -1,5 +1,7 @@
 # Captura de la unidad física UM1
 
+El transporte MQTT se configura siguiendo [mqtt.md](mqtt.md). La presencia de `mqtt.config.h` lo activa en el firmware; sin ese archivo se usa HTTP. Las evidencias del 20 de octubre descritas abajo corresponden a HTTP. El 24 de octubre se compiló y cargó la versión MQTT en la ESP32-S3 física por COM4: se verificaron nuevas muestras reales, acuses de guardado en el monitor serie e IDs/secuencias coincidentes en el receptor. Ver [resultados MQTT](validation.md).
+
 La captura usa el mismo POST /api/v1/readings que el simulador, con el código de dispositivo registrado y su API Key. El firmware transmite automáticamente una muestra válida cada 10 segundos. El dashboard consulta las mediciones guardadas cada 5 segundos. No es necesario activar un modo de simulación ni ejecutar simulate.py para recibir el ESP32.
 
 Abrir [dashboard de UM1](http://localhost:8000/?device_code=UM1). La URL permite seleccionar cualquier código registrado. Sin un código explícito, se selecciona la unidad de la medición más reciente. El estado de recepción se calcula desde received_at sin aplicar el filtro histórico: después de 30 s sin muestras avisa que la recepción no es reciente. El último valor guardado permanece visible con su fecha.

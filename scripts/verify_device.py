@@ -37,7 +37,7 @@ def main():
             print(f"ID={latest['id']} temperatura={latest['temperature_c']} C "
                   f"humedad={latest['humidity_percent']} % recepcion={latest['received_at']}", flush=True)
             if len(seen) >= args.samples:
-                print("Captura HTTP de nuevas mediciones verificada.")
+                print("Recepcion de nuevas mediciones verificada en la API.")
                 return 0
         time.sleep(min(2, max(0, deadline - time.monotonic())))
     if latest:

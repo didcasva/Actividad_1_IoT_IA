@@ -6,4 +6,6 @@ __pycache__/
 *.db
 data/
 .backups/
+.secrets/
 firmware/**/config.h
+firmware/**/mqtt.config.h

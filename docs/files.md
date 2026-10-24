@@ -1,6 +1,6 @@
 # Archivos del proyecto
 
-Inventario real de fuentes y documentación. El PDF original se conserva sin cambios; .env, config.h y .backups locales están ignorados por Git.
+Inventario de fuentes y documentación. El PDF original se conserva; `.env`, `config.h`, `mqtt.config.h`, `.secrets/` y `.backups/` están excluidos de Git.
 
 ```text
 .dockerignore
@@ -19,13 +19,16 @@ backend/app/core/config.py
 backend/app/core/database.py
 backend/app/main.py
 backend/app/models/entities.py
+backend/app/mqtt_worker.py
 backend/app/repositories/readings.py
 backend/app/schemas/readings.py
 backend/app/services/csv_store.py
 backend/app/services/ingestion.py
+backend/app/services/mqtt_ingestion.py
 backend/requirements.txt
 backend/tests/conftest.py
 backend/tests/test_api.py
+backend/tests/test_mqtt.py
 compose.yaml
 docs/architecture.md
 docs/cloud-migration.md
@@ -34,6 +37,7 @@ docs/docker-recovery.md
 docs/files.md
 docs/hardware.md
 docs/local-deployment.md
+docs/mqtt.md
 docs/real-device.md
 docs/ubuntu-virtualbox.md
 docs/validation.md
@@ -41,14 +45,18 @@ docs/wifi-troubleshooting.md
 firmware/esp32_dht_monitor/BoundedDHT.h
 firmware/esp32_dht_monitor/config.example.h
 firmware/esp32_dht_monitor/esp32_dht_monitor.ino
+firmware/esp32_dht_monitor/mqtt.config.example.h
 frontend/static/Chart.LICENSE.md
 frontend/static/app.js
 frontend/static/chart.umd.min.js
 frontend/static/style.css
 frontend/templates/index.html
+mqtt/mosquitto.conf
 scripts/reconcile_csv.py
 scripts/setup_env.py
+scripts/setup_mqtt.py
 scripts/simulate.py
 scripts/verify_csv.py
 scripts/verify_device.py
+scripts/verify_mqtt.py
 ```

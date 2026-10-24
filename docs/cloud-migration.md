@@ -1,10 +1,14 @@
-# Segunda fase: VM Ubuntu
+# Segunda fase: AWS y MQTT
 
-No se realiza despliegue público en esta fase. El mismo Compose se puede ejecutar en una VM Ubuntu de cualquier proveedor.
+La integración MQTT local está descrita en [mqtt.md](mqtt.md). No se ha realizado un despliegue público en AWS. El Compose actual sirve para la LAN; el requisito académico de aplicación en subred pública y base de datos en subred privada requiere separar los servicios entre hosts de AWS.
 
-Antes de publicar: dominio y DNS hacia la VM; reverse proxy Caddy o Nginx con certificado HTTPS; publicar solo 80/443, enlazar api a 127.0.0.1:8000; SSH restringido. PostgreSQL permanece sin puerto publicado. Añadir autenticación de lectura/dashboard, límites de tasa y credenciales por dispositivo con rotación. La API actual comparte una clave y las consultas son públicas dentro de la LAN: no exponerla así a Internet.
+Diseño propuesto: EC2 Ubuntu en subred pública con IP elástica, reverse proxy HTTPS, API/dashboard, receptor MQTT y broker Mosquitto con TLS; PostgreSQL en una EC2 de subred privada sin IP pública. El grupo de seguridad de la BD autoriza 5432 solamente desde el grupo de la aplicación. Configurar `DATABASE_URL` con el DNS/IP privado de la BD y un rol SQL propio. En ese despliegue no iniciar el servicio `db` local del Compose; preparar archivos Compose separados y ejecutar las migraciones contra la BD privada. Esta configuración AWS todavía está pendiente.
 
-Cambiar firmware a HTTPS con validación CA mediante WiFiClientSecure; nunca usar setInsecure. El sketch actual utiliza HTTP para la demostración LAN. Las claves viajan sin cifrado allí: utilizar red de laboratorio controlada y no reutilizar secretos de producción. Elegir conectividad del vehículo (router/hotspot con Internet) y evaluar períodos sin cobertura mayores a la capacidad de la cola.
+Mosquitto necesita listener MQTT TLS, certificados válidos y restricciones por topic como las del laboratorio. En el firmware activar `MQTT_TLS=1`, configurar `MQTT_CA_CERT` y el puerto TLS; la ruta de código existe pero no ha sido ensayada con un broker TLS. El receptor usa TCP sin TLS dentro de la red Docker local; una conexión a un broker externo requiere adaptar también su cliente/configuración TLS. AWS IoT Core puede sustituir al broker propio si se elige ese servicio; no se han creado recursos ni certificados de IoT Core.
+
+Antes de publicar: dominio y DNS hacia la VM; reverse proxy Caddy o Nginx con certificado HTTPS; publicar 80/443 para web y 8883 para MQTT TLS con acceso controlado, enlazar api a 127.0.0.1:8000; SSH restringido. No publicar MQTT 1883. En el host privado, publicar PostgreSQL únicamente sobre su IP privada para los servicios autorizados por el grupo de seguridad. Añadir autenticación de lectura/dashboard, límites de tasa y credenciales por dispositivo con rotación. La API actual comparte una clave y las consultas son públicas dentro de la LAN: no exponerla así a Internet.
+
+Para la ruta HTTP heredada, cambiar firmware a HTTPS con validación CA mediante WiFiClientSecure; nunca usar setInsecure. HTTP y el listener MQTT 1883 actuales son para la LAN de laboratorio: sus credenciales viajan sin cifrar. Elegir conectividad del vehículo (router/hotspot con Internet) y evaluar períodos sin cobertura mayores a la capacidad de la cola.
 
 Inyectar DATABASE_URL/API_KEY mediante variables o gestor de secretos, con permisos restringidos para .env. Separar credencial de migración y rol de aplicación, minimizar permisos SQL. Ejecutar migraciones antes de iniciar nuevas versiones. Establecer backups, retención, monitorización y pruebas de restauración. El CSV sigue siendo una proyección recuperable de la BD.
 

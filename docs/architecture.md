@@ -5,13 +5,21 @@ Caso de uso: observar temperatura y humedad del área de atención de unidades m
 ```mermaid
 flowchart LR
   DHT11 --> ESP32
-  ESP32 -->|Wi-Fi / hotspot 2.4 GHz, HTTP JSON| API[FastAPI]
+  ESP32 -->|MQTT QoS 1| Broker[Mosquitto]
+  Broker --> Worker[Receptor Python]
+  Worker --> PG
+  Worker --> CSV
+  Worker -->|ACK guardado| Broker
+  Broker -->|ACK| ESP32
+  ESP32 -->|HTTP opcional| API[FastAPI]
   API --> PG[(PostgreSQL)]
-  PG --> CSV[CSV persistente]
+  API --> CSV[CSV persistente]
   Browser[Navegador / Chart.js] --> API
 ```
 
 Las rutas validan el contrato HTTP; los esquemas Pydantic validan los datos; ingestion aplica las reglas por sensor; el repositorio construye consultas SQLAlchemy. PostgreSQL confirma primero la transacción. Después se reconstruye el CSV bajo bloqueo interproceso y se reemplaza atómicamente dentro del mismo volumen. El índice único resuelve reintentos concurrentes.
+
+El perfil Compose `mqtt` agrega Mosquitto y `mqtt-worker`. El receptor valida topic, `device_code` y JSON con el mismo esquema y llama al mismo servicio de ingestión. Solo publica el acuse `stored` después de SQL/CSV; el ESP32 mantiene la muestra en NVS hasta ese acuse. La presencia del archivo privado `mqtt.config.h` selecciona MQTT en el firmware; sin ese archivo se conserva HTTP. El dashboard usa HTTP en ambos casos. Ver [topics, permisos, reintentos y pruebas](mqtt.md).
 
 No existe una transacción distribuida entre archivo y PostgreSQL: una interrupción puede dejar el CSV atrasado, pero la tarea de reconciliación al iniciar y cada 30 segundos lo recupera. Si falla el CSV durante ingestión, la API devuelve 503 aunque la fila ya esté confirmada: el firmware reintenta la misma identidad. GET /health verifica SQL y reconstrucción del archivo.
 
