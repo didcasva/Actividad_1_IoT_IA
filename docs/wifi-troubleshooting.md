@@ -68,3 +68,5 @@ Después de un reinicio controlado de diagnóstico, se capturaron 45 segundos de
 Se observaron cinco intentos de lectura inválida sin panic ni reinicio espontáneo en esa ventana. El reinicio reportado al comienzo (`Reinicio=11`) corresponde al reinicio USB solicitado para capturar el arranque. Esto verifica la conexión Wi-Fi y la recuperación frente a lecturas inválidas durante el ensayo; no demuestra estabilidad indefinida ni una lectura física válida del sensor.
 
 La API local respondió 200 en /health, con host LAN 192.168.20.115. Todavía no se verificó ingestión HTTP desde el ESP32 porque el sensor no entrega una muestra válida. Pendiente revisar una foto del cableado actual, confirmando que el ESP-01S negro se haya retirado, que la señal del zócalo IO2 llegue a GPIO4, y que haya alimentación y tierra comunes.
+
+En la sesión posterior del mismo día se confirmó lectura física válida y POST 200 por COM4, junto con nuevas filas de UM1 en PostgreSQL/CSV y recepción activa en el dashboard. Ese punto pendiente del ensayo inicial quedó verificado; ver [real-device.md](real-device.md).

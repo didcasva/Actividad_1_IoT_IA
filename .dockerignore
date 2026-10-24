@@ -5,4 +5,5 @@
 **/.pytest_cache
 *.pdf
 data
+.backups
 firmware

@@ -74,4 +74,4 @@ Prueba física pendiente: comparar una medición con un instrumento de referenci
 
 La cola persiste tras reinicio. Cambiar DEVICE_CODE con una cola pendiente reasigna esas muestras al nuevo código: vaciarla antes de cambiar de unidad. No cambiar el formato de la estructura sin migrar/versionar la cola.
 
-Actualización del 20 de octubre: se compiló y cargó el firmware en el ESP32-S3 físico, se verificó conexión Wi-Fi y se observó ejecución durante 45 s sin el panic anterior. El DHT11 sigue devolviendo lecturas inválidas; su cableado y la primera muestra física válida están pendientes. Ver [diagnóstico y resultados](wifi-troubleshooting.md).
+Actualización del 20 de octubre: se compiló y cargó el firmware en el ESP32-S3 físico, se verificó conexión Wi-Fi y se observó ejecución durante 45 s sin el panic anterior. En un ensayo posterior se confirmó lectura válida de 27.1 °C / 72 %RH por COM4, POST 200, recepción de tres nuevas muestras consecutivas, almacenamiento coincidente en PostgreSQL/CSV y visualización de UM1 en el dashboard. Ver [diagnóstico](wifi-troubleshooting.md) y [captura del dispositivo real](real-device.md).

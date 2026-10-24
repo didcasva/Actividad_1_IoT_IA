@@ -24,6 +24,8 @@ docker compose logs api migrate
 
 ## Ubuntu Server físico o VM
 
+Para la instalación completa desde cero en Oracle VirtualBox, incluyendo red puente, Docker, transferencia de la versión local y registro del ESP32 UM1, seguir [la guía paso a paso para Ubuntu](ubuntu-virtualbox.md).
+
 Instalar Docker siguiendo [el repositorio oficial para Ubuntu](https://docs.docker.com/engine/install/ubuntu/). Con el repositorio oficial configurado:
 
 ```bash
@@ -60,6 +62,7 @@ Esperar a que /health responda y repetir conteo y comparación. Deben ser iguale
 ## Problemas habituales
 
 - Error named pipe / engine: iniciar Docker Desktop y esperar que el motor Linux esté listo.
+- Error `failed to resolve host db` o referencias de imagen ausentes: ver [recuperación de Docker](docker-recovery.md), con respaldo y recreación de contenedores conservando los volúmenes.
 - 401: comprobar X-API-Key idéntica a API_KEY de .env.
 - 404 ingestión: verificar device_code y is_active en devices.
 - 422: revisar formato JSON, rangos y fechas con zona UTC.

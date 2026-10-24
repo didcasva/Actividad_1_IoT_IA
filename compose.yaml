@@ -1,3 +1,4 @@
+name: taller1
 services:
   db:
     image: postgres:16-alpine
@@ -14,6 +15,7 @@ services:
       retries: 20
     restart: unless-stopped
   migrate:
+    image: actividad1-iot-ia-migrate:local
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -23,6 +25,7 @@ services:
       db:
         condition: service_healthy
   api:
+    image: actividad1-iot-ia-api:local
     build:
       context: .
       dockerfile: backend/Dockerfile

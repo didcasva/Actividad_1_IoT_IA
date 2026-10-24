@@ -35,3 +35,11 @@ Se decodificó el ELF exacto del panic original y se localizó un Interrupt WDT 
 Compilación para ESP32S3 Dev Module, flash 16 MB, PSRAM deshabilitada y USB CDC habilitado: correcta. Carga física por COM4: correcta, con hashes verificados. Captura posterior de 45 s: Wi-Fi asociado y con IP 192.168.20.146, RSSI -32 dBm, cinco lecturas DHT inválidas y ningún nuevo panic/reinicio espontáneo. La API local respondió 200 en /health.
 
 Pendiente: obtener lecturas físicas válidas del DHT11, ingestión HTTP desde este ESP32, reconexión real al interrumpir Wi-Fi y ensayo prolongado de estabilidad. Los datos históricos de pruebas simuladas no demuestran esos puntos. Detalles y perfil de compilación en wifi-troubleshooting.md.
+
+### Ensayo posterior: captura física confirmada
+
+Se observaron por COM4 lecturas de 27.1 °C / 72 %RH y respuestas POST 200. scripts/verify_device.py, que solo consulta la API y no genera datos, confirmó tres muestras nuevas consecutivas de UM1: IDs 383, 384 y 385 a intervalos de unos 10 s. El dashboard se comprobó en navegador con UM1 seleccionada, tarjetas y estado de recepción activa. También se verificó el estado sin recepción reciente antes de reconectar el dispositivo.
+
+PostgreSQL y CSV coincidieron exactamente en 389 filas en la comprobación final. node --check frontend/static/app.js y git diff --check pasaron. Se reconstruyó y arrancó la API con los cambios del dashboard. No se volvió a ejecutar la suite backend porque este cambio no altera su lógica; los resultados pytest anteriores siguen documentados en su ensayo original.
+
+Esto completa la verificación física de lectura, ingestión y visualización que estaba pendiente en el ensayo anterior. Siguen pendientes la interrupción controlada de Wi-Fi con recuperación NVS, la estabilidad prolongada, las pruebas en vehículo y Ubuntu.

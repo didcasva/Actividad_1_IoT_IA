@@ -1,6 +1,6 @@
 # Archivos del proyecto
 
-Inventario real de fuentes y documentación. El PDF original se conserva sin cambios; .env y config.h locales están ignorados por Git.
+Inventario real de fuentes y documentación. El PDF original se conserva sin cambios; .env, config.h y .backups locales están ignorados por Git.
 
 ```text
 .dockerignore
@@ -30,9 +30,12 @@ compose.yaml
 docs/architecture.md
 docs/cloud-migration.md
 docs/database.md
+docs/docker-recovery.md
 docs/files.md
 docs/hardware.md
 docs/local-deployment.md
+docs/real-device.md
+docs/ubuntu-virtualbox.md
 docs/validation.md
 docs/wifi-troubleshooting.md
 firmware/esp32_dht_monitor/BoundedDHT.h
@@ -47,4 +50,5 @@ scripts/reconcile_csv.py
 scripts/setup_env.py
 scripts/simulate.py
 scripts/verify_csv.py
+scripts/verify_device.py
 ```
