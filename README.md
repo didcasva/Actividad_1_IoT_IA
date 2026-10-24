@@ -8,6 +8,8 @@
 | --- | --- |
 | Didier Manuel Castro Vasquez | 22606316 |
 | Ingrid Valentina Sánchez Manzano | 22610485 |
+| Jesús Bolaños Botina | 22602601 |
+| Daniel Caicedo Villegas | 22601469 |
 
 ## Proyecto
 
