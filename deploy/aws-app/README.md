@@ -1,6 +1,6 @@
 # Aplicación pública AWS con certificado para IP
 
-Instalación para esta actividad: EC2 pública `3.231.16.96` (IP elástica), dirección privada `192.168.0.200`; PostgreSQL en la EC2 privada `192.168.1.142`. Docker y la conexión SQL entre ambas máquinas ya fueron comprobados por el usuario. La aplicación pública y la emisión ACME deben verificarse al ejecutar esta guía en AWS.
+Instalación para esta actividad: EC2 pública `3.231.16.96` (IP elástica), dirección privada `192.168.0.200`; PostgreSQL en la EC2 privada `192.168.1.142`. El 24 de octubre de 2026 se confirmó la aplicación remota, el acceso HTTPS, el certificado público, el temporizador de renovación y la captura física ESP32→MQTT TLS→PostgreSQL/CSV en AWS. Esta guía conserva los pasos para reproducir la instalación; las evidencias están en [validation.md](../../docs/validation.md).
 
 No se necesita comprar un dominio: [Let's Encrypt admite certificados para IP con Certbot 5.4 o superior](https://letsencrypt.org/2026/03/11/shorter-certs-certbot). Su vigencia es de seis días. Se usa Certbot 5.8, renovación mediante systemd y recarga de Caddy/Mosquitto. El ESP32 confía en las raíces ISRG; no hay que recompilarlo cada vez que se renueva el certificado del servidor.
 
@@ -119,10 +119,10 @@ python3 scripts/verify_device.py --device UM1 --samples 3 --timeout 60
 sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml exec -T api python scripts/verify_csv.py
 ```
 
-`verify_device.py` consulta por defecto el puerto local 8000; no genera datos. La prueba física AWS queda pendiente hasta observar nuevas mediciones y acuses del ESP32. La cola anterior puede contener muestras pendientes de la LAN: conserva su identidad al reenviarlas; no se borra la NVS durante esta migración.
+`verify_device.py` consulta por defecto el puerto local 8000; no genera datos. En cada instalación comprobar nuevas mediciones y acuses del ESP32; la instalación descrita ya pasó esta comprobación. La cola anterior puede contener muestras pendientes de la LAN: conserva su identidad al reenviarlas; no se borra la NVS durante esta migración.
 
 ## Alcance y operación
 
-Probado localmente en contenedores aislados: migraciones contra PostgreSQL externo, login HTTPS, API key, MQTT TLS con verificación CA/IP, ACK de guardado, idempotencia, CSV y recarga de certificados. Se usó una CA exclusiva de pruebas; no equivale a haber emitido un certificado público ni a haber desplegado en AWS. El detalle se registra en [validation.md](../../docs/validation.md).
+Probado primero localmente en contenedores aislados: migraciones contra PostgreSQL externo, login HTTPS, API key, MQTT TLS con verificación CA/IP, ACK de guardado, idempotencia, CSV y recarga de certificados, con una CA exclusiva de pruebas. Después se verificó el despliegue real con certificado público y ESP32 físico en AWS. Los ensayos locales y remotos se distinguen en [validation.md](../../docs/validation.md).
 
 El CSV y la cola MQTT usan volúmenes propios del proyecto `rutasalud-app`; PostgreSQL conserva su volumen en la otra EC2. No ejecutar `down -v` al actualizar. Mantener respaldos fuera de ambas instancias y ensayar restauración. El rol `monitor` no es superusuario y posee la base para las migraciones académicas; separar migrador y rol de ejecución es una mejora posterior. El enlace SQL entre EC2 usa la red privada y controles de acceso; este ejemplo no configura TLS para PostgreSQL.

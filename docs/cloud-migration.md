@@ -1,6 +1,6 @@
 # Segunda fase: AWS y MQTT
 
-La arquitectura académica separa aplicación/broker en una EC2 de subred pública y PostgreSQL en una EC2 de subred privada. El usuario confirmó Docker en la pública, PostgreSQL saludable en la privada y autenticación SQL desde la pública. La dirección elástica es `3.231.16.96`; las direcciones privadas son `192.168.0.200` (aplicación) y `192.168.1.142` (BD).
+La arquitectura académica separa aplicación/broker en una EC2 de subred pública y PostgreSQL en una EC2 de subred privada. El despliegue y la captura física MQTT TLS se confirmaron el 24 de octubre de 2026. La dirección elástica es `3.231.16.96`; las direcciones privadas son `192.168.0.200` (aplicación) y `192.168.1.142` (BD).
 
 Usar las guías y Compose separados:
 
@@ -10,7 +10,7 @@ Usar las guías y Compose separados:
 
 La instalación por IP utiliza certificados públicos de Let's Encrypt y Certbot, sin exigir un dominio. El timer renueva y recarga los certificados de ambos servicios. El dashboard y sus consultas requieren contraseña; el POST HTTPS conserva su API key. MQTT publica únicamente 8883 con TLS, usuarios separados y permisos por topic. El listener 1883 solo existe dentro de Docker; la API se enlaza al loopback del host. El enlace PostgreSQL usa la VPC y sus grupos de seguridad; no se configura TLS SQL en esta plantilla.
 
-La configuración pública se probó localmente con PostgreSQL en otro proyecto Docker, una CA de pruebas y puertos de loopback. Esto no demuestra despliegue AWS ni emisión ACME pública. La emisión remota, renovación ACME y captura ESP32→AWS deben comprobarse siguiendo la guía y registrando sus resultados en [validation.md](validation.md).
+La configuración pública se probó primero localmente con PostgreSQL en otro proyecto Docker, una CA de pruebas y puertos de loopback. Posteriormente se confirmó el certificado público, el dashboard protegido, los servicios remotos saludables y la captura ESP32→AWS, con coincidencia SQL/CSV. El temporizador está activo y su primera ejecución automática terminó con código 0. No se forzó la sustitución de un certificado aún vigente ni se esperó su caducidad para ensayar la renovación real; los resultados y límites se registran en [validation.md](validation.md).
 
 Para el ESP32, generar el archivo privado MQTT TLS y copiarlo al sketch cuando los servicios remotos estén saludables. Mantener Wi-Fi de 2.4 GHz con salida a Internet/NTP y validar CA e identidad del servidor. No utilizar `setInsecure()`. La ruta HTTP heredada del firmware utiliza HTTP para LAN; para el despliegue descrito se usa MQTT TLS. No apuntar ese transporte HTTP sin cifrar a Internet.
 

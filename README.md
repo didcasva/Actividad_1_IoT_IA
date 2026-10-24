@@ -27,7 +27,7 @@ Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor 
 - Suite de 29 pruebas backend aprobada con PostgreSQL en una base de pruebas independiente. Ingestión MQTT y permisos comprobados con mensajes sintéticos en un despliegue aislado.
 - Firmware MQTT compilado y cargado en la ESP32-S3 física por COM4. Captura real de UM1 por MQTT y acuses de guardado PostgreSQL/CSV verificados; las pruebas HTTP anteriores también se conservan como evidencia.
 - Guía de instalación en Ubuntu Server con Oracle VirtualBox disponible; la ejecución y validación en esa VM están pendientes.
-- AWS: PostgreSQL privado instalado y conexión desde la EC2 pública confirmados por el usuario. Configuración separada de aplicación con HTTPS por IP, MQTT TLS y renovación de certificados probada localmente; despliegue público y captura física en AWS pendientes.
+- AWS: aplicación pública desplegada en `3.231.16.96`, PostgreSQL en EC2 privada, dashboard HTTPS con contraseña y broker MQTT TLS en 8883. ESP32-S3 cargado y captura física de UM1 confirmada en AWS, con acuses de guardado y coincidencia PostgreSQL/CSV. Temporizador de certificados activo y primera ejecución automática correcta.
 
 Los ensayos y sus límites están registrados en [validación](docs/validation.md), [captura física](docs/real-device.md) y [recuperación de Docker](docs/docker-recovery.md). La recuperación controlada tras interrupciones de Wi-Fi, la estabilidad prolongada y las pruebas en vehículo siguen pendientes.
 
