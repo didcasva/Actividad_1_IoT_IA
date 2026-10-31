@@ -143,20 +143,6 @@ Los datos se guardan en volúmenes de Docker y la configuración en archivos del
 
 No cargar datos sintéticos en la unidad física de AWS para forzar umbrales. Las pruebas sintéticas anteriores se hicieron en entornos aislados. El disparo físico de las reglas de temperatura y humedad no se verificó en este despliegue.
 
-## Preguntas frecuentes para la sustentación
-
-| Pregunta | Respuesta breve |
-| --- | --- |
-| ¿Usamos HTTP o MQTT desde el ESP32? | MQTT con TLS en AWS. HTTP POST queda como alternativa; el navegador consulta por HTTP sobre HTTPS. |
-| ¿Por qué dos servidores? | Para separar los servicios públicos de la persistencia accesible por la VPC. |
-| ¿Qué evita los duplicados? | La identidad única del dispositivo, arranque y secuencia, además de conservarla en cada reintento. |
-| ¿Qué pasa si no hay conexión? | El ESP32 conserva hasta 60 muestras en NVS y reintenta. La cola es limitada y rechaza muestras nuevas cuando se llena. |
-| ¿Qué significa el ACK? | Que la aplicación completó los destinos habilitados; no es solo la aceptación del broker. |
-| ¿El CSV descargado es el archivo físico completo? | La exportación del dashboard se genera desde PostgreSQL y aplica los filtros; el archivo persistente conserva todo el histórico. |
-| ¿Por qué Discord? | Es una elección opcional para avisos externos. La consigna de la actividad 2 no se ha contrastado en este repositorio. |
-| ¿Los servicios arrancan solos? | La política y los servicios de Ubuntu están configurados. Falta registrar la prueba de reinicio completo. |
-| ¿El prototipo demuestra cumplimiento sanitario? | No. Se requiere definir el uso, instrumentos adecuados, calibración, cobertura y procesos de calidad. |
-
 ## Material de consulta
 
 - [Bitácora técnica y operación de AWS](bitacora-aws-actividad2.md).
