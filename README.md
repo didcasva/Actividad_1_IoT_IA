@@ -157,6 +157,8 @@ compose.yaml, .env.example, .gitignore, .dockerignore
 
 Guías: [arquitectura](docs/architecture.md), [datos y verificación CSV](docs/database.md), [conexión ESP32 físico](docs/hardware.md), [diagnóstico Wi-Fi y reinicios](docs/wifi-troubleshooting.md), [Windows y Ubuntu local/VM](docs/local-deployment.md), [fase de nube, backups y seguridad](docs/cloud-migration.md), [resultados reales](docs/validation.md).
 
+Apoyo para la exposición: [problemática, arquitectura AWS y modelo de datos](docs/modelo-datos-y-problematica.md), [datos del ESP32, métodos HTTP/MQTT y consulta del CSV por SSH](docs/comunicacion-y-csv.md).
+
 Repositorio: https://github.com/didcasva/Actividad_1_IoT_IA.git. La configuración real se mantiene en `.env`, `config.h`, `mqtt.config.h` y `.secrets/`, excluidos de Git y de las imágenes.
 
 Docker Compose utiliza el proyecto taller1 y las imágenes actividad1-iot-ia-api:local / actividad1-iot-ia-migrate:local / actividad1-iot-ia-mqtt:local; el broker usa eclipse-mosquitto:2.0. Ver [recuperación de Docker y comprobación de datos](docs/docker-recovery.md) si falla la red interna o una referencia de imagen. Los respaldos locales .backups/ están excluidos de Git y de las imágenes.
