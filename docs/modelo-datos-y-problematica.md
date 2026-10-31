@@ -1,4 +1,4 @@
-# Ruta Salud: problemática y modelo de datos
+# Ruta Salud: problemática, arquitectura en AWS y modelo de datos
 
 Documento de apoyo para la exposición académica. Esquema contrastado con los modelos y la migración inicial del proyecto el 30 de octubre de 2026. Describe PostgreSQL; InfluxDB y Grafana siguen pendientes para la Actividad 2.
 
@@ -24,6 +24,72 @@ flowchart LR
 ```
 
 La consulta histórica y la exportación CSV existen. La generación de informes aprobados, las alertas de umbral y el registro de acciones correctivas todavía no están implementados.
+
+## Arquitectura de los servidores en AWS
+
+El despliegue utiliza **dos servidores EC2 Ubuntu con Docker**, dentro de una misma red virtual de AWS (VPC). El servidor público recibe las mediciones y atiende el dashboard; el servidor privado conserva la base de datos. La aplicación se comunica con PostgreSQL mediante las direcciones privadas de la VPC.
+
+```mermaid
+flowchart TB
+    ESP["Unidad móvil UM1<br/>DHT11 + ESP32-S3"]
+    WEB["Operador<br/>Navegador web"]
+
+    subgraph AWS["AWS · VPC del proyecto"]
+        subgraph PUBLICA["Subred pública"]
+            subgraph APP["EC2 pública · Ubuntu + Docker<br/>IP elástica: 3.231.16.96<br/>IP privada: 192.168.0.200"]
+                BROKER["Mosquitto<br/>Broker MQTT"]
+                WORKER["Receptor MQTT<br/>Validación y guardado"]
+                CADDY["Caddy<br/>HTTPS y autenticación"]
+                API["FastAPI<br/>Dashboard y consultas"]
+                CSV["Volumen persistente<br/>Archivo CSV"]
+            end
+        end
+
+        subgraph PRIVADA["Subred privada"]
+            subgraph DATOS["EC2 privada · Ubuntu + Docker<br/>IP privada: 192.168.1.142<br/>Sin IP pública"]
+                PG[("PostgreSQL 16<br/>Base de datos monitor")]
+                VOL["Volumen persistente<br/>Datos de PostgreSQL"]
+                PG --- VOL
+            end
+        end
+    end
+
+    ESP -->|"Internet · MQTT con TLS · 8883"| BROKER
+    WEB -->|"Internet · HTTPS · 443"| CADDY
+    BROKER -->|"MQTT interno de Docker · 1883"| WORKER
+    CADDY -->|"HTTP interno · 8000"| API
+    WORKER -->|"Escritura · red privada · 5432"| PG
+    API -->|"Consultas e ingestión HTTP · red privada · 5432"| PG
+    WORKER --> CSV
+    API --> CSV
+```
+
+### Función de cada servidor
+
+| Servidor | Ubicación y direcciones | Responsabilidad |
+| --- | --- | --- |
+| **Público: aplicación y broker** | Subred pública. IP elástica `3.231.16.96`; IP privada `192.168.0.200`. | Mosquitto recibe las publicaciones del ESP32; el receptor valida y almacena las muestras; FastAPI sirve el dashboard y las consultas; Caddy proporciona HTTPS y autenticación. También se conserva el CSV. |
+| **Privado: base de datos** | Subred privada. IP `192.168.1.142`, sin IP pública. | PostgreSQL conserva las tablas `devices` y `sensor_readings` en un volumen persistente. Recibe las conexiones de la aplicación por la VPC. |
+
+### Recorrido de una medición
+
+1. El ESP32 publica temperatura y humedad en `rutasalud/UM1/telemetria`, utilizando MQTT con TLS y credenciales.
+2. Mosquitto, en el servidor público, entrega la publicación al receptor suscrito.
+3. El receptor valida el mensaje, guarda la muestra en PostgreSQL del servidor privado y completa el CSV en el servidor público.
+4. Después del guardado, el receptor devuelve la confirmación por MQTT al ESP32.
+5. El operador entra al dashboard por HTTPS; FastAPI consulta PostgreSQL y devuelve el histórico de la unidad.
+
+### Acceso y separación de la red
+
+| Conexión | Puerto TCP | Uso |
+| --- | --- | --- |
+| ESP32 → servidor público | `8883` | Telemetría MQTT protegida por TLS, usuario y permisos por topic. |
+| Navegador → servidor público | `443` | Consulta del dashboard mediante HTTPS y autenticación. |
+| Autoridad certificadora → servidor público | `80` | Validación para emitir y renovar el certificado; el resto de solicitudes HTTP se redirige a HTTPS. |
+| Servidor público → servidor privado | `5432` | Acceso a PostgreSQL por la VPC. La regla de entrada de la base se limita al servidor público. |
+| Administrador → servidor público → servidor privado | `22` | Administración SSH con PuTTY y salto desde el servidor público al privado. |
+
+El ESP32 y el navegador se conectan a los servicios del servidor público. El puerto PostgreSQL se publica sobre la IP privada y su acceso se restringe mediante el grupo de seguridad. Los puertos `1883` y `8000` se utilizan dentro del despliegue, sin publicación directa en Internet. Los certificados TLS del servidor público se gestionan con Certbot y una tarea de renovación automática.
 
 ## Modelo relacional actual
 
@@ -117,15 +183,3 @@ Como referencia para sustentar el caso de uso, el numeral 7 del estándar 11.1.4
 La Resolución 1403 de 2007 incluye condiciones ambientales y registros para el almacenamiento de medicamentos dentro de su ámbito de aplicación. Ver [texto en el normograma del Invima](https://normograma.invima.gov.co/compilacion/docs/resolucion_minproteccion_1403_2007.htm).
 
 El proyecto aporta un prototipo de captura y evidencia ambiental. Su uso en informes regulatorios requiere concretar, con el responsable de calidad de la institución, el servicio y zona cubiertos, requisitos aplicables, instrumentos adecuados y su calibración, continuidad del registro, gestión de desviaciones y revisión de los informes. El prototipo con DHT11 no constituye por sí solo una certificación de cumplimiento ni una validación de cadena de frío.
-
-## Texto breve para la presentación
-
-> Ruta Salud aborda la dificultad de mantener registros continuos y consultables de temperatura y humedad en unidades móviles de salud. Mediante un ESP32 y un sensor ambiental, transmite las mediciones por MQTT a AWS y las conserva en una base de datos y en CSV. Esto permite consultar el histórico por unidad y periodo, y prepara una base de evidencia para informes de seguimiento y auditoría. La evolución del proyecto incorpora alertas, gestión de desviaciones y validación de los instrumentos para apoyar los procesos de calidad de la institución.
-
-## Fuentes técnicas del esquema
-
-- `backend/app/models/entities.py`
-- `backend/alembic/versions/001_initial.py`
-- `backend/app/services/ingestion.py`
-- `backend/app/schemas/readings.py`
-- `docs/database.md`

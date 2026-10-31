@@ -42,11 +42,13 @@ deploy/aws-db/compose.yaml
 deploy/aws-db/init-app.sql
 docs/architecture.md
 docs/cloud-migration.md
+docs/comunicacion-y-csv.md
 docs/database.md
 docs/docker-recovery.md
 docs/files.md
 docs/hardware.md
 docs/local-deployment.md
+docs/modelo-datos-y-problematica.md
 docs/mqtt.md
 docs/real-device.md
 docs/ubuntu-virtualbox.md
@@ -75,4 +77,4 @@ scripts/verify_device.py
 scripts/verify_mqtt.py
 ```
 
-Total: 70 archivos de fuentes y documentación.
+Total: 72 archivos de fuentes y documentación.
