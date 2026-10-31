@@ -2,13 +2,7 @@
 
 **Corte de la evidencia:** 30 de octubre de 2026, hora de Colombia (`America/Bogota`). Algunos registros del servidor llevan fecha 31 de octubre porque están en UTC.
 
-Este guion explica el sistema que quedó desplegado y las pruebas confirmadas. La [bitácora técnica](bitacora-aws-actividad2.md) contiene los comandos y el registro de cambios. La consigna original de la actividad 2 no está incorporada al repositorio; este documento describe la implementación, sin certificar el cumplimiento de una rúbrica que no se ha contrastado.
-
-## Mensaje de apertura
-
-> Ruta Salud captura temperatura y humedad ambiental de una unidad móvil mediante un ESP32 y un DHT11. El dispositivo transmite las muestras por MQTT con TLS hacia AWS. Allí conservamos los registros en PostgreSQL, generamos un CSV y mantenemos una proyección de series de tiempo en InfluxDB. Grafana permite consultar las mediciones y evaluar alertas. Comprobamos el flujo con el sensor físico, la coincidencia de los registros y la activación y resolución de una alerta de falta de datos.
-
-## Arquitectura que se debe mostrar
+## Arquitectura
 
 ```mermaid
 flowchart LR
@@ -132,16 +126,6 @@ Captura aportada durante la verificación guiada: las tres reglas están aprovis
 Los datos se guardan en volúmenes de Docker y la configuración en archivos del disco EBS. Docker y containerd quedaron habilitados al inicio en ambas EC2. Los siete servicios permanentes tienen `restart: unless-stopped`; la swap de 1 GiB en cada servidor está registrada en `/etc/fstab`. El temporizador del certificado está habilitado y activo en la pública.
 
 **Estado de la prueba:** se comprobó la configuración de arranque. No se recibió evidencia del reinicio completo de ambas EC2; esa comprobación queda pendiente. Persistencia en un volumen y respaldo fuera de la instancia son necesidades diferentes.
-
-## Demostración recomendada
-
-1. Abrir el [dashboard original de UM1](https://3.231.16.96/?device_code=UM1) y el [dashboard de Grafana](https://3.231.16.96/grafana/d/rutasalud-ambiente/monitoreo-ambiental?var-unidad=UM1&from=now-15m&to=now). Ingresar las credenciales de forma privada.
-2. Con el ESP32 encendido, mostrar una lectura y su actualización aproximadamente cada diez segundos.
-3. Mostrar las tres reglas en Grafana y explicar `Normal`, `Pending` y `Firing`.
-4. Para una demostración en vivo de falta de datos, apagar el ESP32 y aprovechar la espera de varios minutos para explicar la persistencia y los resultados. La captura histórica del disparo es evidencia de una prueba anterior, no una ejecución nueva.
-5. Encenderlo, mostrar mediciones recientes y comprobar el retorno a `Normal`. Si se usa el complemento de Discord, mostrar disparo y resolución sin exponer el webhook.
-
-No cargar datos sintéticos en la unidad física de AWS para forzar umbrales. Las pruebas sintéticas anteriores se hicieron en entornos aislados. El disparo físico de las reglas de temperatura y humedad no se verificó en este despliegue.
 
 ## Material de consulta
 
