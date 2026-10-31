@@ -133,10 +133,6 @@ Los datos se guardan en volúmenes de Docker y la configuración en archivos del
 
 **Estado de la prueba:** se comprobó la configuración de arranque. No se recibió evidencia del reinicio completo de ambas EC2; esa comprobación queda pendiente. Persistencia en un volumen y respaldo fuera de la instancia son necesidades diferentes.
 
-### 8. Cierre y alcance
-
-> El resultado es un flujo de monitoreo ambiental desplegado en dos EC2, probado con el sensor físico y con verificación de consistencia del histórico. También comprobamos que la falta de recepción se detecta y que la alerta se resuelve al recuperar las mediciones. El siguiente trabajo es validar el arranque tras reinicio, ampliar las pruebas de estabilidad y formalizar los respaldos y la operación prolongada.
-
 ## Demostración recomendada
 
 1. Abrir el [dashboard original de UM1](https://3.231.16.96/?device_code=UM1) y el [dashboard de Grafana](https://3.231.16.96/grafana/d/rutasalud-ambiente/monitoreo-ambiental?var-unidad=UM1&from=now-15m&to=now). Ingresar las credenciales de forma privada.
