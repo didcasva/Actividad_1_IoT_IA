@@ -29,6 +29,14 @@ def private_write(path, body):
     path.chmod(0o600)
 
 
+def append_env(path, values):
+    path = Path(path)
+    body = path.read_text(encoding="utf-8-sig")
+    separator = "" if not body or body.endswith("\n") else "\n"
+    with path.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(separator + "".join(f"{key}={value}\n" for key, value in values.items()))
+
+
 def docker_command(sudo=False):
     return ["sudo", "docker"] if sudo else ["docker"]
 

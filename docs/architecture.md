@@ -9,13 +9,19 @@ flowchart LR
   Broker --> Worker[Receptor Python]
   Worker --> PG
   Worker --> CSV
+  Worker --> Influx[(InfluxDB)]
   Worker -->|ACK guardado| Broker
   Broker -->|ACK| ESP32
   ESP32 -->|HTTP opcional| API[FastAPI]
   API --> PG[(PostgreSQL)]
   API --> CSV[CSV persistente]
+  API --> Influx
+  Influx --> Grafana
+  Grafana -->|alertas| Discord
   Browser[Navegador / Chart.js] --> API
 ```
+
+InfluxDB es una proyección de series de tiempo, igual que el CSV: PostgreSQL sigue siendo la fuente de verdad. Con `INFLUX_URL` definido, la ingestión escribe el punto después de SQL y CSV, y el acuse `stored` solo sale si InfluxDB también lo aceptó. Si falla, responde 503 con la fila ya confirmada y el reintento reescribe el mismo punto, porque usa el `measured_at` guardado. Sin `INFLUX_URL` el flujo no cambia.
 
 Las rutas validan el contrato HTTP; los esquemas Pydantic validan los datos; ingestion aplica las reglas por sensor; el repositorio construye consultas SQLAlchemy. PostgreSQL confirma primero la transacción. Después se reconstruye el CSV bajo bloqueo interproceso y se reemplaza atómicamente dentro del mismo volumen. El índice único resuelve reintentos concurrentes.
 

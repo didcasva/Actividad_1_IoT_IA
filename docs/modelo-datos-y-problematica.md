@@ -1,6 +1,6 @@
 # Ruta Salud: problemática, arquitectura en AWS y modelo de datos
 
-Documento de apoyo para la exposición académica. Esquema contrastado con los modelos y la migración inicial del proyecto el 30 de octubre de 2026. Describe PostgreSQL; InfluxDB y Grafana siguen pendientes para la Actividad 2.
+Documento de apoyo para la exposición académica. Esquema contrastado con los modelos y la migración inicial del proyecto el 30 de octubre de 2026. Describe PostgreSQL; InfluxDB y Grafana se documentan en [datos](database.md#influxdb) y [Grafana](grafana.md).
 
 ## Problemática
 
@@ -23,7 +23,7 @@ flowchart LR
     F --> H[Soporte para elaboración de informes]
 ```
 
-La consulta histórica y la exportación CSV existen. La generación de informes aprobados, las alertas de umbral y el registro de acciones correctivas todavía no están implementados.
+La consulta histórica y la exportación CSV existen. Grafana genera alertas de umbral de demostración. La generación de informes aprobados y el registro de acciones correctivas todavía no están implementados.
 
 ## Arquitectura de los servidores en AWS
 

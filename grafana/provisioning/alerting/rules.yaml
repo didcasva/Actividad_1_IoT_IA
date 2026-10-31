@@ -1,0 +1,106 @@
+# Umbrales de prototipo academico, no criterios clinicos: ajustar params en cada regla.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: Monitoreo ambiental
+    folder: RutaSalud
+    interval: 1m
+    rules:
+      - uid: rutasalud-temperatura
+        title: Temperatura fuera de rango
+        condition: C
+        noDataState: OK # La regla de falta de datos cubre este caso.
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: 'Unidad {{ $labels.device_code }}: temperatura de {{ printf "%.1f" $values.B.Value }} °C (rango permitido: 15 a 30 °C).'
+        labels:
+          severidad: alta
+        data:
+          - refId: A
+            datasourceUid: rutasalud-influx
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              refId: A
+              query: |-
+                from(bucket: "telemetria")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "ambiente" and r._field == "temperature_c")
+                  |> keep(columns: ["_time", "_value", "device_code"])
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: {type: outside_range, params: [15, 30]}
+      - uid: rutasalud-humedad
+        title: Humedad fuera de rango
+        condition: C
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: 'Unidad {{ $labels.device_code }}: humedad de {{ printf "%.0f" $values.B.Value }} % (rango permitido: 30 a 75 %).'
+        labels:
+          severidad: alta
+        data:
+          - refId: A
+            datasourceUid: rutasalud-influx
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              refId: A
+              query: |-
+                from(bucket: "telemetria")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "ambiente" and r._field == "humidity_percent")
+                  |> keep(columns: ["_time", "_value", "device_code"])
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: {type: outside_range, params: [30, 75]}
+      - uid: rutasalud-sin-datos
+        title: Sin mediciones de UM1
+        condition: C
+        noDataState: Alerting
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: 'UM1 no ha enviado mediciones en los ultimos 2 minutos.'
+        labels:
+          severidad: alta
+          device_code: UM1
+        data:
+          - refId: A
+            datasourceUid: rutasalud-influx
+            relativeTimeRange: {from: 120, to: 0}
+            model:
+              refId: A
+              query: |-
+                from(bucket: "telemetria")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "ambiente" and r._field == "temperature_c" and r.device_code == "UM1")
+                  |> keep(columns: ["_time", "_value"])
+                  |> count()
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: {type: lt, params: [1]}

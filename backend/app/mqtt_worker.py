@@ -72,6 +72,7 @@ def main():
     if not settings.mqtt_worker_password:
         raise SystemExit("MQTT no configurado: ejecutar scripts/setup_mqtt.py")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     READY.unlink(missing_ok=True)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="rutasalud-ingestor",
                          clean_session=False, protocol=mqtt.MQTTv311, manual_ack=True)

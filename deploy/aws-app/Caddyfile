@@ -20,6 +20,10 @@ https://{$PUBLIC_IP} {
 	handle @ingest {
 		reverse_proxy api:8000
 	}
+	# Grafana usa su propio inicio de sesion.
+	handle /grafana* {
+		reverse_proxy grafana:3000
+	}
 	handle {
 		basic_auth {
 			{$DASHBOARD_USERNAME} {$DASHBOARD_PASSWORD_HASH}
