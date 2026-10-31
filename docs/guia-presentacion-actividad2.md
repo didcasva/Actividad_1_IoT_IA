@@ -38,8 +38,6 @@ flowchart LR
 
 PostgreSQL e InfluxDB reciben las conexiones por la red privada. La comunicación exterior del ESP32 utiliza TLS y la del navegador HTTPS. En esta instalación las conexiones internas a PostgreSQL y a InfluxDB no tienen TLS adicional.
 
-## Guion de exposición de 8 a 10 minutos
-
 ### 1. Problemática y objetivo
 
 Las mediciones ocasionales y los registros manuales dificultan reconstruir las condiciones ambientales de una jornada. El objetivo del prototipo es automatizar la captura, conservar el histórico por unidad y facilitar su consulta. Se mide el ambiente del punto donde se instala el sensor; no se capturan datos de pacientes ni temperatura corporal.
