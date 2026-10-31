@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from filelock import Timeout
+import httpx
 from sqlalchemy.exc import IntegrityError
 from app.repositories import readings as repo
 from app.models.entities import SensorReading
 from app.services.csv_store import reconcile
+from app.services.influx_store import write_reading
 
 
 def ingest(db, data):
@@ -31,4 +33,8 @@ def ingest(db, data):
         reconcile()
     except (OSError, Timeout) as exc:
         raise HTTPException(503, "Medición guardada; CSV pendiente, reintente la misma identidad") from exc
+    try:
+        write_reading(data.device_code, row)
+    except httpx.HTTPError as exc:
+        raise HTTPException(503, "Medición guardada; InfluxDB pendiente, reintente la misma identidad") from exc
     return row

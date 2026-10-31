@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     mqtt_port: int = 1883
     mqtt_worker_username: str = "rutasalud-worker"
     mqtt_worker_password: str = ""
+    influx_url: str = ""  # Vacio: instalacion sin InfluxDB.
+    influx_token: str = ""
+    influx_org: str = "rutasalud"
+    influx_bucket: str = "telemetria"
 
 
 settings = Settings()

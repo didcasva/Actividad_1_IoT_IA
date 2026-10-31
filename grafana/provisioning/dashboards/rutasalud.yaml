@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: RutaSalud
+    folder: RutaSalud
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: ${GF_PATHS_PROVISIONING}/dashboards

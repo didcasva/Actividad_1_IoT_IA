@@ -11,13 +11,18 @@ flowchart LR
   subgraph Pública: 192.168.0.200
     Broker[Mosquitto] -->|MQTT interno 1883| Worker[Receptor MQTT]
     Caddy --> API[FastAPI + dashboard]
+    Caddy --> Grafana[Grafana + alertas]
     API --> CSV[Volumen CSV]
     Worker --> CSV
   end
   API -->|TCP privado 5432| DB
   Worker -->|TCP privado 5432| DB
+  API -->|HTTP privado 8086| Influx
+  Worker -->|HTTP privado 8086| Influx
+  Grafana -->|HTTP privado 8086| Influx
   subgraph Privada: 192.168.1.142
     DB[PostgreSQL 16 + volumen]
+    Influx[InfluxDB 2.7 + volumen]
   end
 ```
 
@@ -32,9 +37,10 @@ En los grupos de seguridad de AWS configurar:
 | Pública | 443 | 0.0.0.0/0 para acceder al dashboard con contraseña |
 | Pública | 8883 | IP de salida de la red del ESP32; para demostración con redes móviles cambiantes puede usarse 0.0.0.0/0, siempre con TLS, credenciales y ACL |
 | Privada | 5432 | Grupo de seguridad de la pública o 192.168.0.200/32 |
+| Privada | 8086 | Grupo de seguridad de la pública o 192.168.0.200/32 |
 | Privada | 22 | Grupo de seguridad de la pública para el salto SSH |
 
-La salida de la pública debe permitir PostgreSQL hacia `192.168.1.142:5432`, DNS y HTTPS para imágenes/ACME. No añadir reglas públicas para 1883, 8000 o 5432. Si UFW está habilitado, ajustar sus reglas manteniendo SSH; los puertos publicados por Docker también requieren el filtrado del grupo de seguridad. No desactivar el firewall.
+La salida de la pública debe permitir PostgreSQL hacia `192.168.1.142:5432`, InfluxDB hacia `192.168.1.142:8086`, DNS y HTTPS para imágenes/ACME. No añadir reglas públicas para 1883, 8000, 5432 o 8086. Si UFW está habilitado, ajustar sus reglas manteniendo SSH; los puertos publicados por Docker también requieren el filtrado del grupo de seguridad. No desactivar el firewall.
 
 ## 2. Descargar y preparar en la EC2 pública
 
@@ -120,6 +126,34 @@ sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yam
 ```
 
 `verify_device.py` consulta por defecto el puerto local 8000; no genera datos. En cada instalación comprobar nuevas mediciones y acuses del ESP32; la instalación descrita ya pasó esta comprobación. La cola anterior puede contener muestras pendientes de la LAN: conserva su identidad al reenviarlas; no se borra la NVS durante esta migración.
+
+## 8. Conectar InfluxDB
+
+Con InfluxDB iniciado y el token creado según [la guía de la EC2 privada](../aws-db/README.md#influxdb), actualizar el código y agregar la conexión. El token se pide sin mostrarlo:
+
+```bash
+git pull --ff-only
+curl -s http://192.168.1.142:8086/health
+python3 scripts/setup_influx.py --env-file deploy/aws-app/.env --url http://192.168.1.142:8086
+sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml build api
+sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml --profile app up -d --no-build --wait --wait-timeout 120
+sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml exec -T api python scripts/reconcile_influx.py
+sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml exec -T api python scripts/verify_influx.py
+```
+
+`reconcile_influx.py` carga en InfluxDB el histórico de PostgreSQL y se puede repetir sin duplicar puntos. `verify_influx.py` compara cada medición por unidad, tiempo y valores. Ejecutarlo con el sensor detenido o repetirlo si una fila nueva llegó entre las dos consultas. `/health` informa `influx: ok`, `error` o `disabled`, sin marcar la API como no saludable. No hay cambios en el ESP32.
+
+## 9. Conectar Grafana
+
+Con InfluxDB conectado, el token de lectura creado y el [webhook de Discord](../../docs/grafana.md#crear-el-webhook-de-discord) disponible. Comprobar antes la memoria con `free -h`, porque Grafana se suma a los servicios de esta EC2. El token y el webhook se piden sin mostrarlos:
+
+```bash
+python3 scripts/setup_grafana.py --env-file deploy/aws-app/.env
+sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml --profile app --profile grafana up -d --no-build --wait --wait-timeout 120
+sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yaml --profile app restart caddy
+```
+
+Abrir `https://3.231.16.96/grafana/`, usuario `admin` y clave `GRAFANA_ADMIN_PASSWORD` de `deploy/aws-app/.env`. Grafana no abre puertos nuevos: Caddy lo publica por 443 y Grafana llega a InfluxDB por la VPC. Al actualizar servicios, incluir siempre `--profile grafana` para no dejarlo fuera. Reglas y prueba de alertas en [Grafana](../../docs/grafana.md).
 
 ## Alcance y operación
 

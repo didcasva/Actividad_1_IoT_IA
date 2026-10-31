@@ -17,6 +17,27 @@ docker compose exec api cat /data/readings.csv
 
 Ejecutar comparación sin escrituras simultáneas; de lo contrario una nueva fila entre snapshots puede producir una diferencia transitoria. Detener simulador y ESP32 antes de comparar.
 
+## InfluxDB
+
+Bucket `telemetria`, organización `rutasalud`, measurement `ambiente`, tag `device_code`, campos `temperature_c`, `humidity_percent` y `reading_id`. El tiempo del punto es `measured_at`, con precisión de microsegundos. Mismo measurement, tag y tiempo sobrescriben el punto, lo que hace idempotentes los reintentos.
+
+Para usarlo localmente, con `.env` ya creado:
+
+```sh
+python scripts/setup_influx.py --local
+docker compose --profile influx --profile mqtt up -d --build
+docker compose exec api python scripts/reconcile_influx.py
+docker compose exec api python scripts/verify_influx.py
+```
+
+`reconcile_influx.py` reescribe todo el histórico de PostgreSQL y `verify_influx.py` compara cada medición. La interfaz queda en `http://127.0.0.1:8086`, usuario `admin` y clave `INFLUX_ADMIN_PASSWORD` del `.env`. Consulta Flux de ejemplo:
+
+```text
+from(bucket: "telemetria")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "ambiente" and r.device_code == "UM1" and r._field == "temperature_c")
+```
+
 Alta de una segunda unidad (desde terminal, cambiar código también en config.h):
 
 ```sh

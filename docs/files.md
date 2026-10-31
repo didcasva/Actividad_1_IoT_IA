@@ -23,11 +23,13 @@ backend/app/mqtt_worker.py
 backend/app/repositories/readings.py
 backend/app/schemas/readings.py
 backend/app/services/csv_store.py
+backend/app/services/influx_store.py
 backend/app/services/ingestion.py
 backend/app/services/mqtt_ingestion.py
 backend/requirements.txt
 backend/tests/conftest.py
 backend/tests/test_api.py
+backend/tests/test_influx.py
 backend/tests/test_mqtt.py
 compose.yaml
 deploy/aws-app/.env.example
@@ -45,6 +47,7 @@ docs/cloud-migration.md
 docs/database.md
 docs/docker-recovery.md
 docs/files.md
+docs/grafana.md
 docs/hardware.md
 docs/local-deployment.md
 docs/mqtt.md
@@ -61,18 +64,27 @@ frontend/static/app.js
 frontend/static/chart.umd.min.js
 frontend/static/style.css
 frontend/templates/index.html
+grafana/provisioning/alerting/contact-points.yaml
+grafana/provisioning/alerting/rules.yaml
+grafana/provisioning/dashboards/rutasalud.json
+grafana/provisioning/dashboards/rutasalud.yaml
+grafana/provisioning/datasources/influxdb.yaml
 mqtt/mosquitto.conf
 scripts/aws_certificate.py
 scripts/aws_common.py
 scripts/reconcile_csv.py
+scripts/reconcile_influx.py
 scripts/register_device.py
 scripts/setup_aws_app.py
 scripts/setup_env.py
+scripts/setup_grafana.py
+scripts/setup_influx.py
 scripts/setup_mqtt.py
 scripts/simulate.py
 scripts/verify_csv.py
 scripts/verify_device.py
+scripts/verify_influx.py
 scripts/verify_mqtt.py
 ```
 
-Total: 70 archivos de fuentes y documentación.
+Total: 82 archivos de fuentes y documentación.

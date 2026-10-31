@@ -15,7 +15,7 @@
 
 Prototipo académico para medir temperatura y humedad en **unidades móviles de salud**, con ESP32 físico y DHT11 (DHT22 configurable). No procesa datos de pacientes ni constituye un sistema clínico certificado.
 
-Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor Python → PostgreSQL + CSV físico. También se conserva el transporte HTTP JSON con X-API-Key hacia FastAPI. Dashboard HTML/CSS/JS con Chart.js y polling cada cinco segundos. Objetivos: integración de sensores, mensajería por topics, API REST, integridad de datos, persistencia y preparación de infraestructura portable.
+Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor Python → PostgreSQL + CSV físico + InfluxDB (opcional). También se conserva el transporte HTTP JSON con X-API-Key hacia FastAPI. Dashboard HTML/CSS/JS con Chart.js y polling cada cinco segundos. Objetivos: integración de sensores, mensajería por topics, API REST, integridad de datos, persistencia y preparación de infraestructura portable.
 
 ## Estado actual
 
@@ -28,6 +28,8 @@ Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor 
 - Firmware MQTT compilado y cargado en la ESP32-S3 física por COM4. Captura real de UM1 por MQTT y acuses de guardado PostgreSQL/CSV verificados; las pruebas HTTP anteriores también se conservan como evidencia.
 - Guía de instalación en Ubuntu Server con Oracle VirtualBox disponible; la ejecución y validación en esa VM están pendientes.
 - AWS: aplicación pública desplegada en `3.231.16.96`, PostgreSQL en EC2 privada, dashboard HTTPS con contraseña y broker MQTT TLS en 8883. ESP32-S3 cargado y captura física de UM1 confirmada en AWS, con acuses de guardado y coincidencia PostgreSQL/CSV. Temporizador de certificados activo y primera ejecución automática correcta.
+- InfluxDB 2.7 integrado en el código y en los Compose, con 40 pruebas backend aprobadas y escritura/consulta verificadas en Docker por MQTT real con datos sintéticos. Falta desplegarlo en AWS y comprobarlo con el sensor físico. Ver [datos](docs/database.md#influxdb) y [despliegue](deploy/aws-app/README.md#8-conectar-influxdb).
+- Grafana con dashboard, alertas de temperatura, humedad y falta de datos, y notificación por Discord, aprovisionados desde `grafana/provisioning` y probados en Docker con un webhook local. Falta desplegarlo en AWS y probar la entrega real a Discord. Ver [Grafana](docs/grafana.md).
 
 Los ensayos y sus límites están registrados en [validación](docs/validation.md), [captura física](docs/real-device.md) y [recuperación de Docker](docs/docker-recovery.md). La recuperación controlada tras interrupciones de Wi-Fi, la estabilidad prolongada y las pruebas en vehículo siguen pendientes.
 
@@ -136,15 +138,17 @@ backend/
   app/{api,core,models,schemas,repositories,services}/
   app/main.py
   alembic/{env.py,script.py.mako,versions/001_initial.py,versions/002_demo_dht11.py}
-  tests/{conftest.py,test_api.py}
+  tests/{conftest.py,test_api.py,test_mqtt.py,test_influx.py}
   alembic.ini, requirements.txt, Dockerfile
 frontend/{templates/index.html,static/app.js,static/style.css}
 firmware/esp32_dht_monitor/{esp32_dht_monitor.ino,BoundedDHT.h,config.example.h}
 firmware/esp32_dht_monitor/mqtt.config.example.h
 mqtt/mosquitto.conf
+grafana/provisioning/{datasources,dashboards,alerting}/
 backend/app/mqtt_worker.py, backend/app/services/mqtt_ingestion.py
 scripts/{setup_env.py,setup_mqtt.py,simulate.py,reconcile_csv.py,verify_csv.py,verify_device.py,verify_mqtt.py}
 scripts/{aws_common.py,setup_aws_app.py,aws_certificate.py,register_device.py}
+scripts/{setup_influx.py,reconcile_influx.py,verify_influx.py,setup_grafana.py}
 deploy/{aws-db,aws-app}/
 docs/{architecture,database,hardware,local-deployment,ubuntu-virtualbox}.md
 docs/{mqtt,real-device,wifi-troubleshooting,docker-recovery,cloud-migration,validation,files}.md

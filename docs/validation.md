@@ -91,3 +91,27 @@ Antes de la carga, la API AWS no tenía lecturas para UM1. Tras cargar se observ
 Comprobación remota `verify_csv.py`: siete mediciones PostgreSQL/CSV exactamente coincidentes en ese instante; el sensor siguió enviando después. No se utilizó simulador ni se publicaron muestras sintéticas en la base AWS. El histórico LAN se conservó en su entorno independiente. Los registros de Serial y ACK están en `.backups/aws-migration`, fuera del repositorio.
 
 Se consultó systemd por SSH: timer `rutasalud-cert-renew.timer` activo; servicio de renovación con `Result=success`, `ExecMainStatus=0` y primera ejecución a las 18:55:55 UTC (13:55:55 America/Bogota). Esto confirma la ejecución programada de comprobación/recarga. No se forzó la renovación de un certificado todavía vigente ni se validó su sustitución tras días de operación. Siguen pendientes estabilidad prolongada, pérdida real de Wi-Fi, apagado con cola y ensayo en vehículo; las pruebas locales de recarga no sustituyen esos ensayos.
+
+## InfluxDB — 30 de octubre de 2026
+
+Se integró InfluxDB como proyección de series de tiempo en la ingestión común de HTTP y MQTT, con carga del histórico y comparación contra PostgreSQL. La suite backend pasó completa: **40 pruebas** con SQLite, 11 de ellas nuevas. Cubren el formato de los puntos, el reintento sin NTP, la ausencia de ACK mientras InfluxDB falla, la recuperación sin duplicar filas y `/health`. Las respuestas de InfluxDB están simuladas en esas pruebas.
+
+También se ejecutó el código contra un `influxd` 2.7.11 real para Windows, en loopback y con datos descartables, usando SQLite y un token limitado al bucket creado por la API. Pasaron 16 comprobaciones: escritura y consulta Flux reales, coincidencia exacta con la base, reintento sin NTP y `reconcile_influx.py` repetido sin puntos adicionales (conteo real de puntos), detección de mediciones faltantes y distintas por `verify_influx.py`, y 503 con recuperación posterior ante InfluxDB caído o token inválido. Los mensajes fueron sintéticos y no pasaron por Mosquitto.
+
+No ejecutado en ese ensayo: la imagen `influxdb:2.7-alpine`, Compose y PostgreSQL junto a InfluxDB; se cubrieron en el ensayo siguiente.
+
+## Grafana y stack completo en Docker — 30 de octubre de 2026
+
+Se levantó en Docker Desktop el proyecto aislado `rutasalud-e2e` con `compose.yaml`: PostgreSQL, migraciones, API, Mosquitto, receptor, `influxdb:2.7-alpine` y `grafana/grafana:13.2.5`. Un archivo de prueba agregó un webhook local en lugar de Discord, y Caddy con el `Caddyfile` de AWS y un certificado autofirmado. Grafana usó la misma configuración `/grafana` de AWS. Los tokens se crearon con los comandos `influx bucket list` e `influx auth create` de la guía; Grafana usó el de solo lectura.
+
+Un cliente Paho publicó como `device-UM1` por MQTT real, con datos sintéticos cada 10 s. **45 publicaciones, 45 ACK `stored`** y coincidencia exacta de 45 mediciones en PostgreSQL/CSV (`verify_csv.py`) y PostgreSQL/InfluxDB (`verify_influx.py`). Se comprobaron la fuente de datos, el dashboard en navegador, las tres reglas y el punto de contacto. Por Caddy, `/grafana/` respondió 200 y `/` exigió contraseña (401).
+
+| Alerta | Condición de prueba | Disparo | Resolución | Webhook |
+| --- | --- | --- | --- | --- |
+| Temperatura | 35 °C | 95 s | 35 s | Disparo y resolución recibidos |
+| Humedad | 90 % | 95 s | 35 s | Disparo y resolución recibidos |
+| Sin mediciones | Publicador detenido | 221 s | 35 s | Disparo y resolución recibidos |
+
+El ensayo encontró un defecto corregido: `$$labels` no se convierte en `$` en las anotaciones y dejaba las alertas sin mensaje. Después de la prueba se ajustó la redacción de los mensajes, sin cambiar la lógica. La salida de la nueva redacción no se volvió a ejecutar.
+
+No ejecutado: entrega real a Discord (el webhook fue local con el formato de Discord), `deploy/aws-app/compose.yaml` y `deploy/aws-db/compose.yaml` completos, certificado público, despliegue en AWS, memoria disponible en las EC2 y lecturas del sensor físico. No se afirma que estos puntos hayan pasado.

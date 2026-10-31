@@ -11,6 +11,7 @@ from app.schemas.readings import ReadingIn, ReadingOut, DeviceOut
 from app.repositories.readings import query
 from app.services.ingestion import ingest
 from app.services.csv_store import reconcile, write_rows
+from app.services.influx_store import ping
 
 router = APIRouter()
 
@@ -65,4 +66,5 @@ def health(db=Depends(session)):
         reconcile()
     except Exception:
         raise HTTPException(503, "Dependencia no disponible")
-    return {"status": "ok", "database": "ok", "csv": "ok"}
+    # InfluxDB se informa sin marcar la API como no saludable: el dashboard no depende de ella.
+    return {"status": "ok", "database": "ok", "csv": "ok", "influx": ping()}

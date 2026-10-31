@@ -51,6 +51,44 @@ Introducir la clave `MONITOR_PASSWORD` del `.env` privado cuando psql la solicit
 
 El futuro `DATABASE_URL` de la aplicación será `postgresql+psycopg://monitor:CLAVE_MONITOR@192.168.1.142:5432/monitor`; los secretos hexadecimales generados no requieren codificación adicional en la URL. Las tablas `devices`, `sensor_readings` y Alembic se crearán después, al ejecutar las migraciones desde la aplicación. Este Compose no inicia API, CSV ni broker en el servidor de la BD.
 
+## InfluxDB
+
+El mismo Compose inicia InfluxDB 2.7 en esta EC2 privada, publicado solo sobre la IP privada en el puerto 8086. En el grupo de seguridad autorizar TCP 8086 únicamente desde el grupo de seguridad de la aplicación. Actualizar `compose.yaml` en `~/rutasalud-db` y agregar los secretos sin tocar los existentes:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+import secrets
+path = Path('.env')
+if 'INFLUX_ADMIN_TOKEN=' in path.read_text(encoding='utf-8'):
+    print('InfluxDB ya configurado; se conserva sin cambios')
+else:
+    with path.open('a', encoding='utf-8') as stream:
+        stream.write('INFLUX_ADMIN_PASSWORD=' + secrets.token_hex(24) + '\n'
+                     + 'INFLUX_ADMIN_TOKEN=' + secrets.token_hex(32) + '\n')
+    print('Claves InfluxDB agregadas; no impresas')
+PY
+sudo docker compose up -d --wait --wait-timeout 120
+sudo docker compose ps
+```
+
+Crear un token limitado al bucket `telemetria` para la aplicación. El token administrativo no sale de esta instancia:
+
+```bash
+BUCKET_ID=$(sudo docker compose exec -T influxdb influx bucket list --name telemetria --hide-headers | cut -f1)
+sudo docker compose exec -T influxdb influx auth create --org rutasalud --description rutasalud-app --write-bucket "$BUCKET_ID" --read-bucket "$BUCKET_ID"
+```
+
+Crear además un token de solo lectura para Grafana:
+
+```bash
+sudo docker compose exec -T influxdb influx auth create --org rutasalud --description rutasalud-grafana --read-bucket "$BUCKET_ID"
+```
+
+Copiar cada token de la salida directamente en `setup_influx.py` ([paso 8 de la aplicación](../aws-app/README.md)) y `setup_grafana.py` (paso 9). No pegarlos en el chat ni en Git. `influx_data` conserva las series e `influx_config` la configuración del CLI. Las variables `DOCKER_INFLUXDB_INIT_*` solo se aplican con un volumen vacío.
+
+Antes de iniciarlo, comprobar la memoria disponible con `free -h`: la EC2 ya ejecuta PostgreSQL.
+
 ## Reintentos y datos existentes
 
 Los scripts de inicialización solo se ejecutan con un volumen vacío. Cambiar las variables no rota las claves de una base ya inicializada. Si falla la inicialización, revisar `sudo docker compose logs --tail=80 db` y reparar sobre la base existente; no eliminar el volumen como primer paso. Nunca utilizar `down -v` para conservar datos.

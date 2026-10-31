@@ -1,0 +1,139 @@
+{
+  "uid": "rutasalud-ambiente",
+  "title": "Monitoreo ambiental",
+  "tags": ["rutasalud", "iot"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "10s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "unidad",
+        "label": "Unidad",
+        "type": "query",
+        "datasource": {"type": "influxdb", "uid": "rutasalud-influx"},
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"telemetria\", tag: \"device_code\")",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Temperatura actual",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "influxdb", "uid": "rutasalud-influx"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "displayName": "Temperatura",
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 15},
+            {"color": "red", "value": 30}
+          ]}
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "targets": [{
+        "refId": "A",
+        "query": "from(bucket: \"telemetria\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"ambiente\" and r.device_code == \"${unidad}\" and r._field == \"temperature_c\")"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Humedad actual",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "datasource": {"type": "influxdb", "uid": "rutasalud-influx"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "humidity",
+          "decimals": 0,
+          "displayName": "Humedad",
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 30},
+            {"color": "red", "value": 75}
+          ]}
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "targets": [{
+        "refId": "A",
+        "query": "from(bucket: \"telemetria\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"ambiente\" and r.device_code == \"${unidad}\" and r._field == \"humidity_percent\")"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Alertas",
+      "type": "alertlist",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "sortOrder": 1,
+        "maxItems": 10,
+        "stateFilter": {"firing": true, "pending": true, "noData": true, "error": true, "normal": false},
+        "alertInstanceLabelFilter": "",
+        "showInstances": true
+      }
+    },
+    {
+      "id": 4,
+      "title": "Temperatura",
+      "type": "timeseries",
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 6},
+      "datasource": {"type": "influxdb", "uid": "rutasalud-influx"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "displayName": "Temperatura",
+          "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "thresholdsStyle": {"mode": "line"}},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "transparent", "value": null},
+            {"color": "red", "value": 15},
+            {"color": "red", "value": 30}
+          ]}
+        }
+      },
+      "options": {"legend": {"showLegend": false}, "tooltip": {"mode": "single"}},
+      "targets": [{
+        "refId": "A",
+        "query": "from(bucket: \"telemetria\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"ambiente\" and r.device_code == \"${unidad}\" and r._field == \"temperature_c\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+      }]
+    },
+    {
+      "id": 5,
+      "title": "Humedad",
+      "type": "timeseries",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 6},
+      "datasource": {"type": "influxdb", "uid": "rutasalud-influx"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "humidity",
+          "displayName": "Humedad",
+          "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "thresholdsStyle": {"mode": "line"}},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "transparent", "value": null},
+            {"color": "red", "value": 30},
+            {"color": "red", "value": 75}
+          ]}
+        }
+      },
+      "options": {"legend": {"showLegend": false}, "tooltip": {"mode": "single"}},
+      "targets": [{
+        "refId": "A",
+        "query": "from(bucket: \"telemetria\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"ambiente\" and r.device_code == \"${unidad}\" and r._field == \"humidity_percent\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+      }]
+    }
+  ]
+}
