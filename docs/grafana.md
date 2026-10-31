@@ -2,6 +2,10 @@
 
 Grafana 13 lee el bucket `telemetria` de InfluxDB. La fuente de datos, el dashboard **Monitoreo ambiental**, las alertas y la notificación se aprovisionan desde `grafana/provisioning`, sin configuración manual.
 
+**Estado en AWS al 30 de octubre de 2026:** Grafana 13.2.5 saludable y accesible en `https://3.231.16.96/grafana/`. Se confirmaron el dashboard, las tres reglas, el disparo por falta de mediciones y su resolución, con avisos reales en Discord. Ver [evidencias](validation.md#actividad-2-en-aws) y [operación](bitacora-aws-actividad2.md).
+
+**Discord es un complemento opcional de la implementación**, no un requisito académico acreditado. Las alertas pueden evaluarse y visualizarse en Grafana sin ese canal. La configuración actual aprovisiona un contacto Discord y lo usa en la política de notificaciones; una instalación sin Discord requiere ajustar ese archivo y su política, en lugar de dejar una URL vacía. La consigna original de la actividad 2 no está en el repositorio.
+
 ```mermaid
 flowchart LR
     Influx[(InfluxDB)] -->|Flux, token de lectura| Grafana
@@ -17,7 +21,7 @@ flowchart LR
 | Humedad fuera de rango | Última lectura fuera de 30 a 75 % | 1 minuto |
 | Sin mediciones de UM1 | Ningún punto en los últimos 2 minutos | 1 minuto |
 
-Los umbrales son de un prototipo académico, no criterios clínicos. Se cambian en `params` de `grafana/provisioning/alerting/rules.yaml`, y las líneas del dashboard en `rutasalud.json`. Las reglas se evalúan cada minuto. En la prueba de la Actividad 2, las de temperatura y humedad se dispararon en unos 95 segundos y la de falta de datos en unos 3 minutos y 40 segundos. La notificación avisa al dispararse, cada hora si continúa y al resolverse.
+Los umbrales son de un prototipo académico, no criterios clínicos. Se cambian en `params` de `grafana/provisioning/alerting/rules.yaml`, y las líneas del dashboard en `rutasalud.json`. Las reglas se evalúan cada minuto. En el ensayo local con datos sintéticos, las de temperatura y humedad se dispararon en unos 95 segundos y la de falta de datos en unos 3 minutos y 40 segundos. Esas duraciones no se cronometraron en AWS. La notificación avisa al dispararse, cada hora si continúa y al resolverse.
 
 ## Crear el webhook de Discord
 
@@ -36,10 +40,12 @@ Abrir `http://127.0.0.1:3000`, usuario `admin` y clave `GRAFANA_ADMIN_PASSWORD` 
 
 ## Probar en la presentación
 
-- **Humedad:** soplar sobre el DHT11 durante unos segundos, con el aire húmedo sube sobre 75 %. Debe mantenerse alta unos 2 minutos para que la regla complete su espera.
-- **Sin mediciones:** desconectar el ESP32 unos 5 minutos. Al reconectarlo llega el mensaje de resolución.
+- **Sin mediciones, verificado en AWS:** desconectar el ESP32 unos cinco minutos, observar `Firing`, reconectarlo y comprobar `Normal` después de nuevas lecturas y la siguiente evaluación. Si se usa Discord, comprobar también el aviso y `Resolved`.
+- **Temperatura y humedad:** los disparos se verificaron con datos sintéticos en el entorno local aislado. La prueba física de esos dos umbrales en AWS queda pendiente; no insertar muestras simuladas en el histórico real de UM1 para demostrarlos.
 
 Una lectura normal posterior resuelve la alerta y Discord recibe el aviso.
+
+El [guion de presentación](guia-presentacion-actividad2.md) propone cómo mostrar la demostración y explicar los resultados sin confundir los ensayos locales con los remotos.
 
 ## Respaldo y límites
 

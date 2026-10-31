@@ -2,6 +2,8 @@
 
 Instalación para esta actividad: EC2 pública `3.231.16.96` (IP elástica), dirección privada `192.168.0.200`; PostgreSQL en la EC2 privada `192.168.1.142`. El 24 de octubre de 2026 se confirmó la aplicación remota, el acceso HTTPS, el certificado público, el temporizador de renovación y la captura física ESP32→MQTT TLS→PostgreSQL/CSV en AWS. Esta guía conserva los pasos para reproducir la instalación; las evidencias están en [validation.md](../../docs/validation.md).
 
+**Actualización del 30 de octubre de 2026:** InfluxDB 2.7.12 en la privada y Grafana 13.2.5 por HTTPS quedaron desplegados y verificados con el sensor físico. Se comprobó el histórico, el disparo de falta de datos y su resolución. Discord es un canal adicional elegido, no un requisito acreditado de la consigna. La [bitácora](../../docs/bitacora-aws-actividad2.md) registra la ejecución, los recursos y los límites; el [guion de exposición](../../docs/guia-presentacion-actividad2.md) resume los resultados.
+
 No se necesita comprar un dominio: [Let's Encrypt admite certificados para IP con Certbot 5.4 o superior](https://letsencrypt.org/2026/03/11/shorter-certs-certbot). Su vigencia es de seis días. Se usa Certbot 5.8, renovación mediante systemd y recarga de Caddy/Mosquitto. El ESP32 confía en las raíces ISRG; no hay que recompilarlo cada vez que se renueva el certificado del servidor.
 
 ```mermaid
@@ -143,9 +145,11 @@ sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yam
 
 `reconcile_influx.py` carga en InfluxDB el histórico de PostgreSQL y se puede repetir sin duplicar puntos. `verify_influx.py` compara cada medición por unidad, tiempo y valores. Ejecutarlo con el sensor detenido o repetirlo si una fila nueva llegó entre las dos consultas. `/health` informa `influx: ok`, `error` o `disabled`, sin marcar la API como no saludable. No hay cambios en el ESP32.
 
-## 9. Conectar Grafana
+## 9. Conectar Grafana y el canal de avisos
 
 Con InfluxDB conectado, el token de lectura creado y el [webhook de Discord](../../docs/grafana.md#crear-el-webhook-de-discord) disponible. Comprobar antes la memoria con `free -h`, porque Grafana se suma a los servicios de esta EC2. El token y el webhook se piden sin mostrarlos:
+
+El webhook corresponde al contacto que aprovisiona la plantilla actual. Para desplegar una variante sin Discord, ajustar el punto de contacto y la política de notificaciones. En la ejecución registrada ambas EC2 tenían alrededor de 1 GiB de RAM y se agregó swap de 1 GiB. La descarga de Grafana dejó la raíz original al 97 %; se amplió el EBS público a 15 GiB y la raíz a unos 14 GiB, con 7,1 GiB libres después de crecer. Ese estado es una medición del ensayo, no una garantía de capacidad para cargas mayores.
 
 ```bash
 python3 scripts/setup_grafana.py --env-file deploy/aws-app/.env
@@ -154,6 +158,12 @@ sudo docker compose --env-file deploy/aws-app/.env -f deploy/aws-app/compose.yam
 ```
 
 Abrir `https://3.231.16.96/grafana/`, usuario `admin` y clave `GRAFANA_ADMIN_PASSWORD` de `deploy/aws-app/.env`. Grafana no abre puertos nuevos: Caddy lo publica por 443 y Grafana llega a InfluxDB por la VPC. Al actualizar servicios, incluir siempre `--profile grafana` para no dejarlo fuera. Reglas y prueba de alertas en [Grafana](../../docs/grafana.md).
+
+## 10. Persistencia y arranque
+
+Los volúmenes conservan CSV, sesiones MQTT y estado de Grafana; `.env`, `.secrets` y los archivos de aprovisionamiento permanecen en el disco del servidor. Los cinco servicios públicos permanentes tienen `restart: unless-stopped`. Docker y containerd quedaron confirmados como `enabled`; el temporizador del certificado como `enabled` y `active`.
+
+La swap quedó registrada en `/etc/fstab`. La comprobación del reinicio completo de ambas EC2 todavía no tiene un resultado aportado; no se debe confundir configuración de inicio con una prueba de arranque ya ejecutada. Procedimiento y pendientes en la [bitácora](../../docs/bitacora-aws-actividad2.md#pendientes-y-prueba-de-reinicio-para-otra-sesión).
 
 ## Alcance y operación
 
