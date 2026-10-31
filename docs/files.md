@@ -43,12 +43,15 @@ deploy/aws-db/README.md
 deploy/aws-db/compose.yaml
 deploy/aws-db/init-app.sql
 docs/architecture.md
+docs/bitacora-aws-actividad2.md
 docs/cloud-migration.md
 docs/comunicacion-y-csv.md
 docs/database.md
 docs/docker-recovery.md
+docs/evidencias/actividad2-aws-reglas-normal.png
 docs/files.md
 docs/grafana.md
+docs/guia-presentacion-actividad2.md
 docs/hardware.md
 docs/local-deployment.md
 docs/modelo-datos-y-problematica.md
@@ -89,4 +92,4 @@ scripts/verify_influx.py
 scripts/verify_mqtt.py
 ```
 
-Total: 84 archivos de fuentes y documentación.
+Total: 87 archivos de fuentes y documentación.

@@ -59,7 +59,7 @@ MQTT utiliza publicaciones y suscripciones a topics. En el despliegue AWS, el ES
 | `rutasalud/UM1/ack` | Receptor Python | El ESP32 recibe la confirmación de guardado. |
 | `rutasalud/UM1/estado` | ESP32 / broker | Conserva `online`; el broker publica `offline` mediante la última voluntad si detecta una desconexión inesperada. |
 
-El receptor se suscribe a `rutasalud/+/telemetria` y verifica que la unidad del topic coincida con `device_code`. Después de guardar en PostgreSQL y completar el CSV, publica un ACK con `status: "stored"`, el dispositivo, el arranque, la secuencia y el ID de la medición.
+El receptor se suscribe a `rutasalud/+/telemetria` y verifica que la unidad del topic coincida con `device_code`. Después de guardar en PostgreSQL, completar el CSV y escribir en InfluxDB cuando su conexión está habilitada, publica un ACK con `status: "stored"`, el dispositivo, el arranque, la secuencia y el ID de la medición. En el despliegue AWS de la actividad 2, InfluxDB está habilitado.
 
 Las publicaciones de telemetría utilizan QoS 1 y no son retenidas. El ESP32 mantiene cada muestra en NVS hasta recibir el ACK de la aplicación correspondiente. El acuse del broker por sí solo no retira la muestra de la cola. El dashboard obtiene las mediciones mediante HTTP y su indicador de recepción utiliza `received_at`.
 
@@ -134,3 +134,5 @@ La comparación debe realizarse sin nuevas escrituras simultáneas, porque una m
 - [Compose de AWS](../deploy/aws-app/compose.yaml).
 - [Configuración MQTT](mqtt.md).
 - [Problemática, arquitectura AWS y modelo de datos](modelo-datos-y-problematica.md).
+- [Guion de exposición de la actividad 2](guia-presentacion-actividad2.md).
+- [Bitácora del despliegue y operación en AWS](bitacora-aws-actividad2.md).

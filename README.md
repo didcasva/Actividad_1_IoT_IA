@@ -1,6 +1,6 @@
 # Ruta Salud · Monitoreo ambiental IoT
 
-**Actividad 1 · IoT e Inteligencia Artificial**
+**Actividades 1 y 2 · IoT e Inteligencia Artificial**
 
 ## Integrantes
 
@@ -28,8 +28,10 @@ Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor 
 - Firmware MQTT compilado y cargado en la ESP32-S3 física por COM4. Captura real de UM1 por MQTT y acuses de guardado PostgreSQL/CSV verificados; las pruebas HTTP anteriores también se conservan como evidencia.
 - Guía de instalación en Ubuntu Server con Oracle VirtualBox disponible; la ejecución y validación en esa VM están pendientes.
 - AWS: aplicación pública desplegada en `3.231.16.96`, PostgreSQL en EC2 privada, dashboard HTTPS con contraseña y broker MQTT TLS en 8883. ESP32-S3 cargado y captura física de UM1 confirmada en AWS, con acuses de guardado y coincidencia PostgreSQL/CSV. Temporizador de certificados activo y primera ejecución automática correcta.
-- InfluxDB 2.7 integrado en el código y en los Compose, con 40 pruebas backend aprobadas y escritura/consulta verificadas en Docker por MQTT real con datos sintéticos. Falta desplegarlo en AWS y comprobarlo con el sensor físico. Ver [datos](docs/database.md#influxdb) y [despliegue](deploy/aws-app/README.md#8-conectar-influxdb).
-- Grafana con dashboard, alertas de temperatura, humedad y falta de datos, y notificación por Discord, aprovisionados desde `grafana/provisioning` y probados en Docker con un webhook local. Falta desplegarlo en AWS y probar la entrega real a Discord. Ver [Grafana](docs/grafana.md).
+- InfluxDB 2.7.12 desplegado en la EC2 privada y comprobado con el ESP32 físico. Primer corte: 2.951 mediciones coincidentes en PostgreSQL/CSV/InfluxDB. Tras la prueba de recuperación: 3.186 coincidentes entre PostgreSQL e InfluxDB, sin puntos adicionales. Los conteos pertenecen a momentos distintos. Ver [evidencias de AWS](docs/validation.md#actividad-2-en-aws).
+- Grafana 13.2.5 disponible por HTTPS en `/grafana/`, con dashboard y tres reglas aprovisionadas. Se confirmó el disparo de la alerta de falta de datos, un aviso real en Discord, la recuperación a `Normal` y el mensaje `Resolved`. Discord es un complemento opcional de la implementación. Ver [Grafana](docs/grafana.md).
+- Docker y containerd habilitados al inicio en ambas EC2; siete servicios permanentes con `unless-stopped`, swap persistente de 1 GiB en cada servidor y temporizador TLS habilitado y activo en la pública. La raíz pública se amplió sobre un EBS de 15 GiB. Falta confirmar el arranque mediante un reinicio completo de ambas EC2.
+- La revisión local de la actividad 2 aprobó 40 pruebas con SQLite temporal y validó ambos Compose de AWS con valores ficticios. Las pruebas remotas guiadas y sus límites se registran por separado en la [bitácora](docs/bitacora-aws-actividad2.md).
 
 Los ensayos y sus límites están registrados en [validación](docs/validation.md), [captura física](docs/real-device.md) y [recuperación de Docker](docs/docker-recovery.md). La recuperación controlada tras interrupciones de Wi-Fi, la estabilidad prolongada y las pruebas en vehículo siguen pendientes.
 
@@ -152,12 +154,16 @@ scripts/{setup_influx.py,reconcile_influx.py,verify_influx.py,setup_grafana.py}
 deploy/{aws-db,aws-app}/
 docs/{architecture,database,hardware,local-deployment,ubuntu-virtualbox}.md
 docs/{mqtt,real-device,wifi-troubleshooting,docker-recovery,cloud-migration,validation,files}.md
+docs/{grafana,comunicacion-y-csv,modelo-datos-y-problematica}.md
+docs/{guia-presentacion-actividad2,bitacora-aws-actividad2}.md
 compose.yaml, .env.example, .gitignore, .dockerignore
 ```
 
 Guías: [arquitectura](docs/architecture.md), [datos y verificación CSV](docs/database.md), [conexión ESP32 físico](docs/hardware.md), [diagnóstico Wi-Fi y reinicios](docs/wifi-troubleshooting.md), [Windows y Ubuntu local/VM](docs/local-deployment.md), [fase de nube, backups y seguridad](docs/cloud-migration.md), [resultados reales](docs/validation.md).
 
-Apoyo para la exposición: [problemática, arquitectura AWS y modelo de datos](docs/modelo-datos-y-problematica.md), [datos del ESP32, métodos HTTP/MQTT y consulta del CSV por SSH](docs/comunicacion-y-csv.md).
+Para presentar y entregar: [guion de exposición de la actividad 2](docs/guia-presentacion-actividad2.md) y [bitácora técnica: qué se hizo, cómo y qué falta comprobar](docs/bitacora-aws-actividad2.md).
+
+Apoyo para la exposición: [problemática, arquitectura AWS y modelo de datos](docs/modelo-datos-y-problematica.md), [datos del ESP32, métodos HTTP/MQTT y consulta del CSV por SSH](docs/comunicacion-y-csv.md). La consigna original de la actividad 2 no está en el repositorio; la documentación describe la implementación y las pruebas disponibles.
 
 Repositorio: https://github.com/didcasva/Actividad_1_IoT_IA.git. La configuración real se mantiene en `.env`, `config.h`, `mqtt.config.h` y `.secrets/`, excluidos de Git y de las imágenes.
 

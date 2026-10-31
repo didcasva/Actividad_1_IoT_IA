@@ -1,4 +1,8 @@
-# Validación real — 17 de octubre de 2026
+# Validación y evidencias
+
+Registro cronológico: los límites de cada ensayo describen lo que se comprobó en ese momento. La actualización más reciente es [Actividad 2 en AWS](#actividad-2-en-aws), con salidas SSH, capturas y confirmaciones del usuario durante el despliegue guiado del 30 de octubre de 2026. Para exponer los resultados, consultar el [guion](guia-presentacion-actividad2.md); para repetir la operación, la [bitácora técnica](bitacora-aws-actividad2.md).
+
+## Pruebas iniciales — 17 de octubre de 2026
 
 Caso de uso confirmado: unidades móviles de salud. Hardware disponible según el usuario: ESP32 y DHT11. DHT22 se conserva como alternativa configurable.
 
@@ -114,4 +118,38 @@ Un cliente Paho publicó como `device-UM1` por MQTT real, con datos sintéticos 
 
 El ensayo encontró un defecto corregido: `$$labels` no se convierte en `$` en las anotaciones y dejaba las alertas sin mensaje. Después de la prueba se ajustó la redacción de los mensajes, sin cambiar la lógica. La salida de la nueva redacción no se volvió a ejecutar.
 
-No ejecutado: entrega real a Discord (el webhook fue local con el formato de Discord), `deploy/aws-app/compose.yaml` y `deploy/aws-db/compose.yaml` completos, certificado público, despliegue en AWS, memoria disponible en las EC2 y lecturas del sensor físico. No se afirma que estos puntos hayan pasado.
+No ejecutado en ese ensayo local: entrega real a Discord (el webhook fue local con el formato de Discord), `deploy/aws-app/compose.yaml` y `deploy/aws-db/compose.yaml` completos, certificado público, despliegue en AWS, memoria disponible en las EC2 y lecturas del sensor físico. Esos puntos se distinguen de la verificación guiada de AWS registrada a continuación.
+
+## Actividad 2 en AWS
+
+**Fecha de corte:** 30 de octubre de 2026, hora de Colombia. Las salidas posteriores a medianoche UTC del 31 corresponden todavía al día 30 en `America/Bogota`.
+
+El usuario ejecutó los comandos remotos y compartió sus resultados y capturas. Se contrastaron con el código del commit `4973629`. No se presenta esta sesión como una inspección SSH automatizada realizada por el asistente. La consigna original de la actividad 2 no estaba disponible; Discord se registra como canal opcional elegido en la implementación.
+
+| Verificación | Evidencia y resultado |
+| --- | --- |
+| Revisión local del código integrado | 40 pruebas backend aprobadas con SQLite temporal; ambos Compose de AWS válidos con valores ficticios. Una advertencia de deprecación TestClient/httpx. |
+| Respaldo de PostgreSQL privado | Dump CUSTOM de 54 KB copiado al host, permisos 600 e índice de 27 entradas legible. Restauración completa no ejecutada. |
+| InfluxDB privado | `rutasalud-db-influxdb-1` saludable, `influx ping` devuelve `OK`, publicación en `192.168.1.142:8086`. |
+| Acceso desde la pública | `/health` de InfluxDB responde `pass`, versión `v2.7.12`. |
+| Conexión de API y receptor | Contenedores actualizados saludables; API devuelve `status`, `database`, `csv` e `influx` en `ok`. |
+| Carga del histórico | `reconcile_influx.py`: 2.951 mediciones. |
+| Consistencia inicial | `verify_influx.py`: 2.951 coincidentes, cero puntos adicionales. `verify_csv.py`: 2.951 coincidentes. |
+| Recepción física inicial | IDs 2953–2955, 28,9 °C y 65 %, recibidas aproximadamente cada diez segundos. |
+| Ampliación de disco | Después de descargar Grafana quedaban 259 MiB libres (97 %). EBS público ampliado a 15 GiB; partición raíz de 13,9 GiB, ext4 de unos 14 GiB y 7,1 GiB libres tras la ampliación. |
+| Grafana y HTTPS | `rutasalud-app-grafana-1` saludable; `https://3.231.16.96/grafana/api/health` devuelve `database: ok`, versión 13.2.5. |
+| Dashboard y reglas | [Captura](evidencias/actividad2-aws-reglas-normal.png) con las tres reglas aprovisionadas en `Normal`; el usuario confirmó gráficas con datos recientes. |
+| Alerta real de ausencia de datos | Captura de Discord con `Firing`, `Sin mediciones de UM1` y `grafana_state_reason = NoData`, después de apagar el ESP32. |
+| Recuperación física | IDs 3184–3186, 27,6 °C y 68 %, recibidas a las 23:16:26, 23:16:36 y 23:16:46 de Colombia. |
+| Consistencia posterior | 3.186 mediciones coincidentes entre SQL e InfluxDB, cero puntos adicionales. No se aportó una nueva comparación CSV de ese corte. |
+| Resolución de la alerta | El usuario confirmó retorno a `Normal`, recepción de `Resolved` y actualización de las gráficas. |
+| Inicio de Docker | Docker y containerd `enabled` en las dos EC2. |
+| Políticas de contenedores | Cinco servicios públicos y dos privados con `unless-stopped`. |
+| Swap | 1 GiB activo en cada EC2 y entrada de `/swapfile-rutasalud` presente en ambos `/etc/fstab`. |
+| Certificados | Temporizador `rutasalud-cert-renew.timer` confirmado como `enabled` y `active` en la pública. |
+
+Los conteos son instantáneas de un histórico que continuó creciendo. Las comparaciones CSV y SQL/InfluxDB no se extrapolan a otros cortes. Los intervalos de disparo y resolución en AWS no se cronometraron; las duraciones de 95 s y 221 s del apartado anterior pertenecen exclusivamente al ensayo local sintético.
+
+**Pendiente de confirmar:** reinicio completo de ambas EC2 y recuperación sin `compose up`, restauración del dump, respaldo fuera de las instancias, identificación de la instantánea EBS si se creó, disparo físico de los umbrales de temperatura/humedad en AWS, recuperación de cola durante una pérdida real de Wi-Fi y estabilidad prolongada. No se forzó una nueva renovación ACME en esta sesión.
+
+Los detalles de recursos, credenciales por función, comandos y procedimientos pendientes están en la [bitácora técnica](bitacora-aws-actividad2.md).

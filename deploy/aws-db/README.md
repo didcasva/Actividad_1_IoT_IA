@@ -1,6 +1,8 @@
-# PostgreSQL privado en AWS
+# PostgreSQL e InfluxDB privados en AWS
 
 Plantilla para la segunda EC2 Ubuntu, con Docker Engine y Compose instalados. La IP privada informada para el laboratorio es `192.168.1.142`; la aplicación se instalará en la otra EC2 (`192.168.0.200` como IP privada). Las direcciones son configuración de esta instalación, no direcciones públicas.
+
+**Estado confirmado el 30 de octubre de 2026:** PostgreSQL 16.15 e InfluxDB 2.7.12 saludables en esta EC2. Se cargó el histórico y se verificaron datos reales del ESP32 desde la aplicación pública. Docker y containerd están habilitados al inicio, ambos contenedores usan `unless-stopped` y hay swap persistente de 1 GiB. Falta registrar el resultado de un reinicio completo. Evidencias y comandos en la [bitácora de la actividad 2](../../docs/bitacora-aws-actividad2.md).
 
 El usuario confirmó acceso SSH desde el público, salida al repositorio de Docker e instalación de PostgreSQL en AWS: `rutasalud-db-db-1` saludable, publicado sobre `192.168.1.142:5432`, base `monitor` con propietario `monitor` y permisos de superusuario/creación de bases/roles deshabilitados para ese usuario. La imagen de EC2 confirma que el servidor público tiene IP privada `192.168.0.200` e IP elástica `3.231.16.96`. El usuario confirmó también autenticación TCP desde el público. El despliegue de la aplicación sigue la [guía separada de aplicación pública](../aws-app/README.md). La prueba Docker local de la plantilla es independiente de estas evidencias remotas.
 

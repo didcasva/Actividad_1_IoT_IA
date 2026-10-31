@@ -17,15 +17,15 @@ flowchart LR
   API --> CSV[CSV persistente]
   API --> Influx
   Influx --> Grafana
-  Grafana -->|alertas| Discord
+  Grafana -.-> Discord[Discord opcional]
   Browser[Navegador / Chart.js] --> API
 ```
 
-InfluxDB es una proyección de series de tiempo, igual que el CSV: PostgreSQL sigue siendo la fuente de verdad. Con `INFLUX_URL` definido, la ingestión escribe el punto después de SQL y CSV, y el acuse `stored` solo sale si InfluxDB también lo aceptó. Si falla, responde 503 con la fila ya confirmada y el reintento reescribe el mismo punto, porque usa el `measured_at` guardado. Sin `INFLUX_URL` el flujo no cambia.
+InfluxDB es una proyección de series de tiempo, igual que el CSV: PostgreSQL sigue siendo la fuente de verdad. Con `INFLUX_URL` e `INFLUX_TOKEN` definidos, la ingestión escribe el punto después de SQL y CSV, y el acuse `stored` solo sale si InfluxDB también lo aceptó. Si falla, responde 503 con la fila ya confirmada y el reintento reescribe el mismo punto, porque usa el `measured_at` guardado. Sin la conexión InfluxDB habilitada, se conserva el flujo SQL/CSV.
 
 Las rutas validan el contrato HTTP; los esquemas Pydantic validan los datos; ingestion aplica las reglas por sensor; el repositorio construye consultas SQLAlchemy. PostgreSQL confirma primero la transacción. Después se reconstruye el CSV bajo bloqueo interproceso y se reemplaza atómicamente dentro del mismo volumen. El índice único resuelve reintentos concurrentes.
 
-El perfil Compose `mqtt` agrega Mosquitto y `mqtt-worker`. El receptor valida topic, `device_code` y JSON con el mismo esquema y llama al mismo servicio de ingestión. Solo publica el acuse `stored` después de SQL/CSV; el ESP32 mantiene la muestra en NVS hasta ese acuse. La presencia del archivo privado `mqtt.config.h` selecciona MQTT en el firmware; sin ese archivo se conserva HTTP. El dashboard usa HTTP en ambos casos. Ver [topics, permisos, reintentos y pruebas](mqtt.md).
+El perfil Compose `mqtt` agrega Mosquitto y `mqtt-worker` al entorno local. El receptor valida topic, `device_code` y JSON con el mismo esquema y llama al mismo servicio de ingestión. Solo publica el acuse `stored` después de SQL/CSV y, cuando está habilitado, InfluxDB; el ESP32 mantiene la muestra en NVS hasta ese acuse. La presencia del archivo privado `mqtt.config.h` selecciona MQTT en el firmware; sin ese archivo se conserva HTTP. El dashboard usa HTTP en ambos casos. Ver [topics, permisos, reintentos y pruebas](mqtt.md).
 
 No existe una transacción distribuida entre archivo y PostgreSQL: una interrupción puede dejar el CSV atrasado, pero la tarea de reconciliación al iniciar y cada 30 segundos lo recupera. Si falla el CSV durante ingestión, la API devuelve 503 aunque la fila ya esté confirmada: el firmware reintenta la misma identidad. GET /health verifica SQL y reconstrucción del archivo.
 
@@ -34,3 +34,5 @@ La reconstrucción completa prioriza simplicidad e integridad para una demostrac
 El ESP32 guarda hasta 60 muestras en NVS (10 minutos a 10 s). Con conectividad intermitente conserva muestras y reintenta con espera progresiva. Al llenarse rechaza muestras nuevas y lo informa por Serial. Es una cola limitada, no almacenamiento indefinido. Las escrituras frecuentes en flash requieren evaluar desgaste para una instalación real; usar SD o almacenamiento diseñado para registros continuos en producción.
 
 Referencias: [orden de arranque en Compose](https://docs.docker.com/compose/how-tos/startup-order/), [Preferences ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/preferences.html).
+
+En AWS, los perfiles `app` y `grafana` corresponden al Compose público y PostgreSQL/InfluxDB al privado. El despliegue, los volúmenes, la swap, la ampliación EBS y las comprobaciones de inicio están registrados en la [bitácora de la actividad 2](bitacora-aws-actividad2.md). Discord es el canal adicional elegido para las notificaciones; no participa en la persistencia de las mediciones.

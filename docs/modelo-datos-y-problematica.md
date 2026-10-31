@@ -1,6 +1,6 @@
 # Ruta Salud: problemática, arquitectura en AWS y modelo de datos
 
-Documento de apoyo para la exposición académica. Esquema contrastado con los modelos y la migración inicial del proyecto el 30 de octubre de 2026. Describe PostgreSQL; InfluxDB y Grafana se documentan en [datos](database.md#influxdb) y [Grafana](grafana.md).
+Documento de apoyo para la exposición académica. Esquema contrastado con los modelos y la migración inicial del proyecto el 30 de octubre de 2026. Describe PostgreSQL y su relación con InfluxDB y Grafana. Para presentar el despliegue y sus resultados, usar el [guion de la actividad 2](guia-presentacion-actividad2.md) y la [bitácora técnica](bitacora-aws-actividad2.md).
 
 ## Problemática
 
@@ -19,15 +19,18 @@ flowchart LR
     C --> D[Receptor Python]
     D --> E[(PostgreSQL)]
     D --> F[Archivo CSV]
+    D --> I[(InfluxDB)]
     E --> G[Dashboard y consulta histórica]
     F --> H[Soporte para elaboración de informes]
+    I --> J[Grafana y alertas]
+    J -.-> K[Discord opcional]
 ```
 
 La consulta histórica y la exportación CSV existen. Grafana genera alertas de umbral de demostración. La generación de informes aprobados y el registro de acciones correctivas todavía no están implementados.
 
 ## Arquitectura de los servidores en AWS
 
-El despliegue utiliza **dos servidores EC2 Ubuntu con Docker**, dentro de una misma red virtual de AWS (VPC). El servidor público recibe las mediciones y atiende el dashboard; el servidor privado conserva la base de datos. La aplicación se comunica con PostgreSQL mediante las direcciones privadas de la VPC.
+El despliegue utiliza **dos servidores EC2 Ubuntu con Docker**, dentro de una misma red virtual de AWS (VPC). El servidor público recibe las mediciones y atiende los dashboards; el servidor privado conserva PostgreSQL e InfluxDB. La aplicación y Grafana acceden a la persistencia mediante las direcciones privadas de la VPC. La ampliación de la actividad 2 se verificó con el sensor físico y la prueba de falta de datos, según el [registro de validación](validation.md#actividad-2-en-aws).
 
 ```mermaid
 flowchart TB
@@ -41,6 +44,7 @@ flowchart TB
                 WORKER["Receptor MQTT<br/>Validación y guardado"]
                 CADDY["Caddy<br/>HTTPS y autenticación"]
                 API["FastAPI<br/>Dashboard y consultas"]
+                GRAFANA["Grafana 13.2.5<br/>Gráficas y alertas"]
                 CSV["Volumen persistente<br/>Archivo CSV"]
             end
         end
@@ -48,6 +52,7 @@ flowchart TB
         subgraph PRIVADA["Subred privada"]
             subgraph DATOS["EC2 privada · Ubuntu + Docker<br/>IP privada: 192.168.1.142<br/>Sin IP pública"]
                 PG[("PostgreSQL 16<br/>Base de datos monitor")]
+                INFLUX[("InfluxDB 2.7<br/>Bucket telemetria")]
                 VOL["Volumen persistente<br/>Datos de PostgreSQL"]
                 PG --- VOL
             end
@@ -58,8 +63,12 @@ flowchart TB
     WEB -->|"Internet · HTTPS · 443"| CADDY
     BROKER -->|"MQTT interno de Docker · 1883"| WORKER
     CADDY -->|"HTTP interno · 8000"| API
+    CADDY -->|"HTTP interno · 3000 · /grafana"| GRAFANA
     WORKER -->|"Escritura · red privada · 5432"| PG
     API -->|"Consultas e ingestión HTTP · red privada · 5432"| PG
+    WORKER -->|"Escritura · red privada · 8086"| INFLUX
+    API -->|"Ingestión HTTP opcional · red privada · 8086"| INFLUX
+    GRAFANA -->|"Consulta Flux · red privada · 8086"| INFLUX
     WORKER --> CSV
     API --> CSV
 ```
@@ -68,16 +77,16 @@ flowchart TB
 
 | Servidor | Ubicación y direcciones | Responsabilidad |
 | --- | --- | --- |
-| **Público: aplicación y broker** | Subred pública. IP elástica `3.231.16.96`; IP privada `192.168.0.200`. | Mosquitto recibe las publicaciones del ESP32; el receptor valida y almacena las muestras; FastAPI sirve el dashboard y las consultas; Caddy proporciona HTTPS y autenticación. También se conserva el CSV. |
-| **Privado: base de datos** | Subred privada. IP `192.168.1.142`, sin IP pública. | PostgreSQL conserva las tablas `devices` y `sensor_readings` en un volumen persistente. Recibe las conexiones de la aplicación por la VPC. |
+| **Público: aplicación, broker y visualización** | Subred pública. IP elástica `3.231.16.96`; IP privada `192.168.0.200`. | Mosquitto recibe las publicaciones del ESP32; el receptor valida y almacena; FastAPI sirve el dashboard original; Grafana consulta las series y evalúa alertas; Caddy publica HTTPS. También se conserva el CSV. |
+| **Privado: persistencia** | Subred privada. IP `192.168.1.142`, sin IP pública. | PostgreSQL conserva `devices` y `sensor_readings`; InfluxDB guarda la proyección de series de tiempo. Ambos utilizan volúmenes persistentes y reciben conexiones por la VPC. |
 
 ### Recorrido de una medición
 
 1. El ESP32 publica temperatura y humedad en `rutasalud/UM1/telemetria`, utilizando MQTT con TLS y credenciales.
 2. Mosquitto, en el servidor público, entrega la publicación al receptor suscrito.
-3. El receptor valida el mensaje, guarda la muestra en PostgreSQL del servidor privado y completa el CSV en el servidor público.
-4. Después del guardado, el receptor devuelve la confirmación por MQTT al ESP32.
-5. El operador entra al dashboard por HTTPS; FastAPI consulta PostgreSQL y devuelve el histórico de la unidad.
+3. El receptor valida el mensaje, guarda la muestra en PostgreSQL del servidor privado, completa el CSV en el público y escribe la proyección en InfluxDB.
+4. Después de completar los destinos habilitados, devuelve la confirmación por MQTT al ESP32.
+5. El operador consulta el histórico mediante FastAPI o Grafana: el primero lee PostgreSQL y el segundo InfluxDB. Grafana evalúa las reglas y el canal opcional de Discord recibe los avisos configurados.
 
 ### Acceso y separación de la red
 
@@ -87,9 +96,10 @@ flowchart TB
 | Navegador → servidor público | `443` | Consulta del dashboard mediante HTTPS y autenticación. |
 | Autoridad certificadora → servidor público | `80` | Validación para emitir y renovar el certificado; el resto de solicitudes HTTP se redirige a HTTPS. |
 | Servidor público → servidor privado | `5432` | Acceso a PostgreSQL por la VPC. La regla de entrada de la base se limita al servidor público. |
+| Servidor público → servidor privado | `8086` | Escritura y consulta de InfluxDB por la VPC, con tokens limitados al bucket. |
 | Administrador → servidor público → servidor privado | `22` | Administración SSH con PuTTY y salto desde el servidor público al privado. |
 
-El ESP32 y el navegador se conectan a los servicios del servidor público. El puerto PostgreSQL se publica sobre la IP privada y su acceso se restringe mediante el grupo de seguridad. Los puertos `1883` y `8000` se utilizan dentro del despliegue, sin publicación directa en Internet. Los certificados TLS del servidor público se gestionan con Certbot y una tarea de renovación automática.
+El ESP32 y el navegador se conectan a los servicios del servidor público. PostgreSQL e InfluxDB se publican sobre la IP privada; la configuración prevista restringe su acceso al servidor de aplicación. Los puertos `1883`, `8000` y `3000` se utilizan dentro del despliegue, sin publicación directa en Internet. Caddy publica Grafana en `/grafana/` por el puerto 443. Los certificados TLS se gestionan con Certbot y una tarea de renovación automática; los enlaces interiores SQL y HTTP de InfluxDB no llevan TLS adicional en esta plantilla.
 
 ## Modelo relacional actual
 
@@ -155,7 +165,7 @@ Todos los campos son obligatorios en las tablas. El contrato de entrada admite `
 - Un índice por `(device_id, measured_at)` facilita las consultas de una unidad por tiempo.
 - PostgreSQL verifica humedad entre 0 y 100 %, temperatura entre -40 y 80 °C y secuencia no negativa. El servicio restringe adicionalmente las lecturas DHT11 a 0-50 °C. Son validaciones de datos y sensor, **no umbrales sanitarios**.
 - Las fechas se manejan con zona horaria; para presentar un informe debe indicarse la zona utilizada.
-- El receptor confirma el guardado al ESP32 después de persistir PostgreSQL y completar CSV. El archivo conserva las mediciones, pero no es por sí mismo un informe firmado ni inalterable.
+- El receptor confirma el guardado al ESP32 después de persistir PostgreSQL, completar CSV y escribir InfluxDB cuando está habilitado, como en el despliegue actual. El archivo conserva las mediciones, pero no es por sí mismo un informe firmado ni inalterable.
 
 ## Cómo los registros apoyarían un informe
 
@@ -169,7 +179,7 @@ Propuesta de contenido; no representa un formato oficial definido ni una funcion
 | Tabla de mediciones exportable | Exportación CSV disponible. |
 | Mínimos, máximos y promedios del periodo | Calculables a partir de las lecturas; pendiente incorporarlos al informe. |
 | Umbrales aplicables y su fundamento | Pendiente definirlos por zona, uso y requisitos de los productos. |
-| Desviaciones, duración y acciones tomadas | Pendientes reglas, tratamiento de intervalos sin datos y bitácora de gestión. |
+| Desviaciones, duración y acciones tomadas | Hay reglas de demostración en Grafana y detección de falta de datos; faltan la consolidación de duración, el tratamiento para informes y la bitácora de gestión. |
 | Periodos sin recepción y cobertura de datos | Hay aviso de recepción atrasada; falta consolidar los vacíos en el informe. |
 | Identificación y calibración del sensor | Solo consta el tipo; faltan serie, verificaciones y soportes de calibración. |
 | Elaboración, revisión y aprobación | Pendientes responsables, versión del informe y trazabilidad de aprobación. |
