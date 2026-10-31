@@ -103,7 +103,7 @@ Las reglas tienen una espera de un minuto y evaluación cada minuto; el disparo 
 
 Discord se añadió como **canal opcional de notificación**. La evaluación y visualización de las alertas pertenecen a Grafana. No se presenta Discord como un requisito acreditado de la consigna.
 
-### 6. Resultados que sí podemos presentar
+### 6. Resultados
 
 | Evidencia | Resultado confirmado |
 | --- | --- |
