@@ -1,20 +1,19 @@
-# Segunda fase: AWS y MQTT
+# Segunda fase: AWS
 
-La arquitectura académica separa aplicación/broker en una EC2 de subred pública y PostgreSQL en una EC2 de subred privada. El despliegue y la captura física MQTT TLS se confirmaron el 24 de octubre de 2026. La dirección elástica es `3.231.16.96`; las direcciones privadas son `192.168.0.200` (aplicación) y `192.168.1.142` (BD).
+La arquitectura académica separa la aplicación en una EC2 de subred pública y PostgreSQL en una EC2 de subred privada. El despliegue y la captura física se confirmaron el 24 de octubre de 2026, con MQTT TLS desde la rama `main`; esta rama envía por HTTPS, pendiente de esa prueba física. La dirección elástica es `3.231.16.96`; las direcciones privadas son `192.168.0.200` (aplicación) y `192.168.1.142` (BD).
 
 Usar las guías y Compose separados:
 
 - [PostgreSQL privado](../deploy/aws-db/README.md): volumen persistente, enlace a IP privada y rol `monitor` sin superusuario ni creación de roles/bases.
-- [Aplicación pública, HTTPS por IP y MQTT TLS](../deploy/aws-app/README.md): Caddy, API, migraciones, Mosquitto y receptor; conexión a la BD externa.
-- [MQTT local](mqtt.md): entorno LAN y pruebas físicas anteriores. El Compose raíz no configura el despliegue público.
+- [Aplicación pública y HTTPS por IP](../deploy/aws-app/README.md): Caddy, API y migraciones; conexión a la BD externa. El Compose raíz no configura el despliegue público.
 
-La instalación por IP utiliza certificados públicos de Let's Encrypt y Certbot, sin exigir un dominio. El timer renueva y recarga los certificados de ambos servicios. El dashboard y sus consultas requieren contraseña; el POST HTTPS conserva su API key. MQTT publica únicamente 8883 con TLS, usuarios separados y permisos por topic. El listener 1883 solo existe dentro de Docker; la API se enlaza al loopback del host. El enlace PostgreSQL usa la VPC y sus grupos de seguridad; no se configura TLS SQL en esta plantilla.
+La instalación por IP utiliza certificados públicos de Let's Encrypt y Certbot, sin exigir un dominio. El timer renueva y recarga el certificado de Caddy. El dashboard y sus consultas requieren contraseña; el POST HTTPS conserva su API key. La API se enlaza al loopback del host. El enlace PostgreSQL usa la VPC y sus grupos de seguridad; no se configura TLS SQL en esta plantilla.
 
 La configuración pública se probó primero localmente con PostgreSQL en otro proyecto Docker, una CA de pruebas y puertos de loopback. Posteriormente se confirmó el certificado público, el dashboard protegido, los servicios remotos saludables y la captura ESP32→AWS, con coincidencia SQL/CSV. El temporizador está activo y su primera ejecución automática terminó con código 0. No se forzó la sustitución de un certificado aún vigente ni se esperó su caducidad para ensayar la renovación real; los resultados y límites se registran en [validation.md](validation.md).
 
-Para el ESP32, generar el archivo privado MQTT TLS y copiarlo al sketch cuando los servicios remotos estén saludables. Mantener Wi-Fi de 2.4 GHz con salida a Internet/NTP y validar CA e identidad del servidor. No utilizar `setInsecure()`. La ruta HTTP heredada del firmware utiliza HTTP para LAN; para el despliegue descrito se usa MQTT TLS. No apuntar ese transporte HTTP sin cifrar a Internet.
+Para el ESP32, generar el archivo privado `http.config.h` y copiarlo al sketch cuando los servicios remotos estén saludables. Mantener Wi-Fi de 2.4 GHz con salida a Internet/NTP y validar CA e identidad del servidor. No utilizar `setInsecure()`. La ruta HTTP sin ese archivo es solo para LAN: no apuntar ese transporte sin cifrar a Internet.
 
-El rol `monitor` posee la BD para ejecutar migraciones. Una ampliación debe separar permisos de migración/ejecución, añadir límites de tasa y rotación de credenciales, y evaluar cobertura móvil, monitoreo y colas para interrupciones superiores a diez minutos. AWS IoT Core no forma parte de esta instalación; se utiliza Mosquitto en EC2.
+El rol `monitor` posee la BD para ejecutar migraciones. Una ampliación debe separar permisos de migración/ejecución, añadir límites de tasa y rotación de credenciales, y evaluar cobertura móvil, monitoreo y colas para interrupciones superiores a diez minutos.
 
 ## Respaldos y restauración
 

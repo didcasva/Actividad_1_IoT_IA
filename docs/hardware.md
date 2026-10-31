@@ -1,9 +1,5 @@
 # ESP32 físico y DHT11
 
-## Extensión MQTT
-
-Para el nuevo requisito de broker/topics seguir [la guía MQTT](mqtt.md). Instalar **MQTT by Joel Gaehwiler (256dpi)** además de ArduinoJson 7 y generar el archivo privado `mqtt.config.h`. Su presencia selecciona MQTT; las instrucciones HTTP conservadas abajo aplican cuando ese archivo no existe. No cambia el cableado ni la estructura de la cola NVS. En MQTT la confirmación final del monitor serie es **guardado confirmado en PostgreSQL/CSV**.
-
 ## ESP32-S3 y placa ESP-01S DHT11 V1.0
 
 El firmware actual usa `DHT_PIN 4` (GPIO4 / IO4 del ESP32-S3) y `DHT_TYPE DHT11`. El número de GPIO no es la posición física del pin en el conector.

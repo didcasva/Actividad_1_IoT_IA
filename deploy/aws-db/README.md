@@ -55,6 +55,6 @@ El futuro `DATABASE_URL` de la aplicación será `postgresql+psycopg://monitor:C
 
 Los scripts de inicialización solo se ejecutan con un volumen vacío. Cambiar las variables no rota las claves de una base ya inicializada. Si falla la inicialización, revisar `sudo docker compose logs --tail=80 db` y reparar sobre la base existente; no eliminar el volumen como primer paso. Nunca utilizar `down -v` para conservar datos.
 
-El volumen de esta EC2 empieza vacío: el histórico local Windows no se copia automáticamente. Conservar también las claves de `.env` y realizar respaldos con `pg_dump` antes de migrar histórico. La aplicación AWS, HTTPS y MQTT TLS se preparan por separado según [el plan de nube](../../docs/cloud-migration.md).
+El volumen de esta EC2 empieza vacío: el histórico local Windows no se copia automáticamente. Conservar también las claves de `.env` y realizar respaldos con `pg_dump` antes de migrar histórico. La aplicación AWS y HTTPS se preparan por separado según [el plan de nube](../../docs/cloud-migration.md).
 
 Referencias: [imagen oficial PostgreSQL e inicialización](https://hub.docker.com/_/postgres), [variables de entorno en psql](https://www.postgresql.org/docs/16/app-psql.html).

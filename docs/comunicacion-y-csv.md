@@ -1,6 +1,6 @@
 # Ruta Salud: comunicación del ESP32 y archivo CSV
 
-Guía de apoyo para explicar los datos transmitidos, los métodos HTTP, el intercambio MQTT y la consulta del CSV por SSH. Describe la implementación del proyecto al 30 de octubre de 2026.
+Guía de apoyo para explicar los datos transmitidos, los métodos HTTP y la consulta del CSV por SSH. Describe la implementación del proyecto al 30 de octubre de 2026.
 
 ## Datos que envía el ESP32
 
@@ -47,21 +47,13 @@ La API utiliza `POST` para recibir mediciones y `GET` para consultas y exportaci
 
 Las consultas de mediciones admiten `device_id`, `start` y `end`. Las fechas deben incluir zona horaria. El histórico admite además `limit` y `offset`. La exportación incluye todas las filas que cumplen los filtros, sin la paginación del histórico.
 
-El dashboard consulta la API cada cinco segundos. En AWS, Caddy proporciona HTTPS y autenticación para el dashboard y sus consultas; la ingestión HTTP utiliza `X-API-Key`. La presencia de `mqtt.config.h` con `MQTT_HOST` selecciona MQTT en el firmware; sin esa configuración se utiliza HTTP.
+El dashboard consulta la API cada cinco segundos. En AWS, Caddy proporciona HTTPS y autenticación para el dashboard y sus consultas; la ingestión HTTP utiliza `X-API-Key`. El firmware usa HTTPS con validación de certificado hacia AWS cuando existe `http.config.h`; sin ese archivo usa HTTP en la LAN.
 
-## Publicación y suscripción MQTT
+## Envío por HTTPS
 
-MQTT utiliza publicaciones y suscripciones a topics. En el despliegue AWS, el ESP32 se conecta al broker Mosquitto mediante TLS en el puerto `8883`.
+En el despliegue AWS, el ESP32 envía cada muestra con `POST https://IP:443/api/v1/readings`, valida el certificado del servidor e incluye la cabecera `X-API-Key`. Caddy recibe la conexión y la reenvía a FastAPI, que valida el JSON y guarda la medición en PostgreSQL y en el CSV.
 
-| Topic de UM1 | Publica | Recibe o función |
-| --- | --- | --- |
-| `rutasalud/UM1/telemetria` | ESP32 | El receptor Python recibe el JSON y guarda la medición. |
-| `rutasalud/UM1/ack` | Receptor Python | El ESP32 recibe la confirmación de guardado. |
-| `rutasalud/UM1/estado` | ESP32 / broker | Conserva `online`; el broker publica `offline` mediante la última voluntad si detecta una desconexión inesperada. |
-
-El receptor se suscribe a `rutasalud/+/telemetria` y verifica que la unidad del topic coincida con `device_code`. Después de guardar en PostgreSQL y completar el CSV, publica un ACK con `status: "stored"`, el dispositivo, el arranque, la secuencia y el ID de la medición.
-
-Las publicaciones de telemetría utilizan QoS 1 y no son retenidas. El ESP32 mantiene cada muestra en NVS hasta recibir el ACK de la aplicación correspondiente. El acuse del broker por sí solo no retira la muestra de la cola. El dashboard obtiene las mediciones mediante HTTP y su indicador de recepción utiliza `received_at`.
+El ESP32 mantiene cada muestra en NVS hasta recibir una respuesta 2xx. Si no la recibe, reintenta con la misma identidad, y la base de datos evita duplicarla. El dashboard obtiene las mediciones mediante HTTP y su indicador de recepción utiliza `received_at`.
 
 ## Cómo se implementó el CSV
 
@@ -79,7 +71,7 @@ Las columnas del archivo son:
 id,device_id,temperature_c,humidity_percent,measured_at,received_at,boot_id,sequence_number
 ```
 
-Las fechas se serializan en formato ISO 8601. Si falla la escritura del CSV, la medición ya confirmada permanece en PostgreSQL. HTTP devuelve `503` para que el dispositivo reintente la misma identidad; en MQTT no se confirma el guardado hasta completar el proceso. La API intenta reconciliar el archivo al iniciar y cada 30 segundos, y también al consultar `/health`.
+Las fechas se serializan en formato ISO 8601. Si falla la escritura del CSV, la medición ya confirmada permanece en PostgreSQL. HTTP devuelve `503` para que el dispositivo reintente la misma identidad. La API intenta reconciliar el archivo al iniciar y cada 30 segundos, y también al consultar `/health`.
 
 La base de datos y el archivo no forman una transacción conjunta: una interrupción puede dejar el CSV temporalmente atrasado. La reconstrucción permite recuperarlo desde PostgreSQL. Actualmente se reconstruye todo el histórico con cada recepción, por lo que el costo aumenta al crecer los registros.
 
@@ -87,7 +79,7 @@ El botón de exportación del dashboard llama a `GET /api/v1/readings/export.csv
 
 ## Ver el CSV desde SSH en AWS
 
-El CSV queda en la **EC2 pública de la aplicación**, configurada con IP elástica `3.231.16.96`. PostgreSQL queda en la EC2 privada. Dentro de los contenedores `api` y `mqtt-worker`, la ruta del CSV es `/data/readings.csv`, respaldada por el volumen compartido `rutasalud-app_csv_data`.
+El CSV queda en la **EC2 pública de la aplicación**, configurada con IP elástica `3.231.16.96`. PostgreSQL queda en la EC2 privada. Dentro del contenedor `api`, la ruta del CSV es `/data/readings.csv`, respaldada por el volumen `rutasalud-app_csv_data`.
 
 Después de entrar por SSH a la instancia pública, ir al repositorio y consultar las últimas diez mediciones:
 
@@ -127,10 +119,8 @@ La comparación debe realizarse sin nuevas escrituras simultáneas, porque una m
 - [Firmware ESP32](../firmware/esp32_dht_monitor/esp32_dht_monitor.ino).
 - [Contrato del JSON](../backend/app/schemas/readings.py).
 - [Rutas HTTP](../backend/app/api/routes.py).
-- [Receptor MQTT](../backend/app/services/mqtt_ingestion.py).
 - [Servicio de ingestión](../backend/app/services/ingestion.py).
 - [Generación del CSV](../backend/app/services/csv_store.py).
 - [Reconciliación periódica](../backend/app/main.py).
 - [Compose de AWS](../deploy/aws-app/compose.yaml).
-- [Configuración MQTT](mqtt.md).
 - [Problemática, arquitectura AWS y modelo de datos](modelo-datos-y-problematica.md).

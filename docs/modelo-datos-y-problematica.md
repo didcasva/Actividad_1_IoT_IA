@@ -15,8 +15,8 @@ Automatizar la captura y conservación de temperatura y humedad por unidad móvi
 ```mermaid
 flowchart LR
     A[Unidad móvil: zona monitoreada] --> B[DHT11 y ESP32]
-    B -->|MQTT con TLS| C[Mosquitto en AWS]
-    C --> D[Receptor Python]
+    B -->|HTTPS| C[Caddy y FastAPI en AWS]
+    C --> D[Servicio de ingestión]
     D --> E[(PostgreSQL)]
     D --> F[Archivo CSV]
     E --> G[Dashboard y consulta histórica]
@@ -37,8 +37,6 @@ flowchart TB
     subgraph AWS["AWS · VPC del proyecto"]
         subgraph PUBLICA["Subred pública"]
             subgraph APP["EC2 pública · Ubuntu + Docker<br/>IP elástica: 3.231.16.96<br/>IP privada: 192.168.0.200"]
-                BROKER["Mosquitto<br/>Broker MQTT"]
-                WORKER["Receptor MQTT<br/>Validación y guardado"]
                 CADDY["Caddy<br/>HTTPS y autenticación"]
                 API["FastAPI<br/>Dashboard y consultas"]
                 CSV["Volumen persistente<br/>Archivo CSV"]
@@ -54,13 +52,10 @@ flowchart TB
         end
     end
 
-    ESP -->|"Internet · MQTT con TLS · 8883"| BROKER
+    ESP -->|"Internet · HTTPS · 443 · API key"| CADDY
     WEB -->|"Internet · HTTPS · 443"| CADDY
-    BROKER -->|"MQTT interno de Docker · 1883"| WORKER
     CADDY -->|"HTTP interno · 8000"| API
-    WORKER -->|"Escritura · red privada · 5432"| PG
-    API -->|"Consultas e ingestión HTTP · red privada · 5432"| PG
-    WORKER --> CSV
+    API -->|"Consultas e ingestión · red privada · 5432"| PG
     API --> CSV
 ```
 
@@ -68,28 +63,28 @@ flowchart TB
 
 | Servidor | Ubicación y direcciones | Responsabilidad |
 | --- | --- | --- |
-| **Público: aplicación y broker** | Subred pública. IP elástica `3.231.16.96`; IP privada `192.168.0.200`. | Mosquitto recibe las publicaciones del ESP32; el receptor valida y almacena las muestras; FastAPI sirve el dashboard y las consultas; Caddy proporciona HTTPS y autenticación. También se conserva el CSV. |
+| **Público: aplicación** | Subred pública. IP elástica `3.231.16.96`; IP privada `192.168.0.200`. | FastAPI recibe, valida y almacena las muestras del ESP32, y sirve el dashboard y las consultas; Caddy proporciona HTTPS y autenticación. También se conserva el CSV. |
 | **Privado: base de datos** | Subred privada. IP `192.168.1.142`, sin IP pública. | PostgreSQL conserva las tablas `devices` y `sensor_readings` en un volumen persistente. Recibe las conexiones de la aplicación por la VPC. |
 
 ### Recorrido de una medición
 
-1. El ESP32 publica temperatura y humedad en `rutasalud/UM1/telemetria`, utilizando MQTT con TLS y credenciales.
-2. Mosquitto, en el servidor público, entrega la publicación al receptor suscrito.
-3. El receptor valida el mensaje, guarda la muestra en PostgreSQL del servidor privado y completa el CSV en el servidor público.
-4. Después del guardado, el receptor devuelve la confirmación por MQTT al ESP32.
+1. El ESP32 envía temperatura y humedad por `POST` a `/api/v1/readings`, utilizando HTTPS y `X-API-Key`.
+2. Caddy, en el servidor público, recibe la conexión y la reenvía a FastAPI.
+3. FastAPI valida el mensaje, guarda la muestra en PostgreSQL del servidor privado y completa el CSV en el servidor público.
+4. Después del guardado, FastAPI responde 200 al ESP32, que retira la muestra de su cola.
 5. El operador entra al dashboard por HTTPS; FastAPI consulta PostgreSQL y devuelve el histórico de la unidad.
 
 ### Acceso y separación de la red
 
 | Conexión | Puerto TCP | Uso |
 | --- | --- | --- |
-| ESP32 → servidor público | `8883` | Telemetría MQTT protegida por TLS, usuario y permisos por topic. |
+| ESP32 → servidor público | `443` | Telemetría por HTTPS con validación de certificado y `X-API-Key`. |
 | Navegador → servidor público | `443` | Consulta del dashboard mediante HTTPS y autenticación. |
 | Autoridad certificadora → servidor público | `80` | Validación para emitir y renovar el certificado; el resto de solicitudes HTTP se redirige a HTTPS. |
 | Servidor público → servidor privado | `5432` | Acceso a PostgreSQL por la VPC. La regla de entrada de la base se limita al servidor público. |
 | Administrador → servidor público → servidor privado | `22` | Administración SSH con PuTTY y salto desde el servidor público al privado. |
 
-El ESP32 y el navegador se conectan a los servicios del servidor público. El puerto PostgreSQL se publica sobre la IP privada y su acceso se restringe mediante el grupo de seguridad. Los puertos `1883` y `8000` se utilizan dentro del despliegue, sin publicación directa en Internet. Los certificados TLS del servidor público se gestionan con Certbot y una tarea de renovación automática.
+El ESP32 y el navegador se conectan a los servicios del servidor público. El puerto PostgreSQL se publica sobre la IP privada y su acceso se restringe mediante el grupo de seguridad. El puerto `8000` se utiliza dentro del despliegue, sin publicación directa en Internet. Los certificados TLS del servidor público se gestionan con Certbot y una tarea de renovación automática.
 
 ## Modelo relacional actual
 
@@ -126,7 +121,7 @@ erDiagram
 | Campo | Tipo | Función |
 | --- | --- | --- |
 | `id` | INTEGER, PK | Identificador interno. |
-| `device_code` | VARCHAR(80), UNIQUE | Código enviado por el ESP32 y usado en MQTT. |
+| `device_code` | VARCHAR(80), UNIQUE | Código enviado por el ESP32. |
 | `name` | VARCHAR(120) | Nombre descriptivo de la unidad o dispositivo. |
 | `sensor_type` | VARCHAR(10) | Tipo de sensor: DHT11 o DHT22. |
 | `location` | VARCHAR(200) | Descripción de la ubicación del sensor. |
@@ -151,11 +146,11 @@ Todos los campos son obligatorios en las tablas. El contrato de entrada admite `
 ### Integridad y trazabilidad existentes
 
 - La clave foránea evita mediciones sin dispositivo registrado.
-- La combinación única `(device_id, boot_id, sequence_number)` evita insertar dos veces una misma muestra cuando MQTT reintenta su entrega.
+- La combinación única `(device_id, boot_id, sequence_number)` evita insertar dos veces una misma muestra cuando el ESP32 reintenta su envío.
 - Un índice por `(device_id, measured_at)` facilita las consultas de una unidad por tiempo.
 - PostgreSQL verifica humedad entre 0 y 100 %, temperatura entre -40 y 80 °C y secuencia no negativa. El servicio restringe adicionalmente las lecturas DHT11 a 0-50 °C. Son validaciones de datos y sensor, **no umbrales sanitarios**.
 - Las fechas se manejan con zona horaria; para presentar un informe debe indicarse la zona utilizada.
-- El receptor confirma el guardado al ESP32 después de persistir PostgreSQL y completar CSV. El archivo conserva las mediciones, pero no es por sí mismo un informe firmado ni inalterable.
+- FastAPI confirma el guardado al ESP32 después de persistir PostgreSQL y completar CSV. El archivo conserva las mediciones, pero no es por sí mismo un informe firmado ni inalterable.
 
 ## Cómo los registros apoyarían un informe
 

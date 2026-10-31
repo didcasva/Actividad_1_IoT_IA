@@ -1,6 +1,6 @@
 # Captura de la unidad física UM1
 
-El transporte MQTT se configura siguiendo [mqtt.md](mqtt.md). La presencia de `mqtt.config.h` lo activa en el firmware; sin ese archivo se usa HTTP. Las evidencias del 20 de octubre descritas abajo corresponden a HTTP. El 24 de octubre se compiló y cargó la versión MQTT en la ESP32-S3 física por COM4: se verificaron nuevas muestras reales, acuses de guardado en el monitor serie e IDs/secuencias coincidentes en el receptor. Ver [resultados MQTT](validation.md).
+El firmware envía por HTTP en la LAN y por HTTPS hacia AWS con `http.config.h`. Las evidencias del 20 de octubre descritas abajo corresponden a HTTP. La captura por MQTT del 24 de octubre se conserva en la rama `main`.
 
 La captura usa el mismo POST /api/v1/readings que el simulador, con el código de dispositivo registrado y su API Key. El firmware transmite automáticamente una muestra válida cada 10 segundos. El dashboard consulta las mediciones guardadas cada 5 segundos. No es necesario activar un modo de simulación ni ejecutar simulate.py para recibir el ESP32.
 

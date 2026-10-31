@@ -15,25 +15,25 @@
 
 Prototipo académico para medir temperatura y humedad en **unidades móviles de salud**, con ESP32 físico y DHT11 (DHT22 configurable). No procesa datos de pacientes ni constituye un sistema clínico certificado.
 
-Arquitectura MQTT: DHT11 → ESP32 → Wi-Fi/hotspot → Mosquitto → receptor Python → PostgreSQL + CSV físico. También se conserva el transporte HTTP JSON con X-API-Key hacia FastAPI. Dashboard HTML/CSS/JS con Chart.js y polling cada cinco segundos. Objetivos: integración de sensores, mensajería por topics, API REST, integridad de datos, persistencia y preparación de infraestructura portable.
+Arquitectura HTTP: DHT11 → ESP32 → Wi-Fi/hotspot → POST JSON con X-API-Key → FastAPI → PostgreSQL + CSV físico. En AWS el POST viaja por HTTPS con validación de certificado y entra por Caddy; en la LAN va por HTTP directo a FastAPI. Dashboard HTML/CSS/JS con Chart.js y polling cada cinco segundos. Objetivos: integración de sensores, API REST, integridad de datos, persistencia y preparación de infraestructura portable.
 
 ## Estado actual
 
 - Captura física de temperatura y humedad verificada con ESP32-S3, DHT11 y dispositivo `UM1`.
 - Recepción HTTP, almacenamiento en PostgreSQL y CSV, y visualización en el dashboard comprobados.
 - Dashboard con selección de unidad, filtros de fecha, gráficas, exportación CSV y aviso tras más de 30 segundos sin recepción.
-- Servicios Docker Compose: base de datos, migraciones y API; el perfil `mqtt` agrega Mosquitto y receptor Python. Datos y sesiones del broker conservados en volúmenes persistentes.
-- MQTT con usuarios/ACL por topic, publicaciones QoS 1, acuse de guardado PostgreSQL/CSV e idempotencia compartida con HTTP. Ver [configuración y pruebas MQTT](docs/mqtt.md).
-- Suite de 29 pruebas backend aprobada con PostgreSQL en una base de pruebas independiente. Ingestión MQTT y permisos comprobados con mensajes sintéticos en un despliegue aislado.
-- Firmware MQTT compilado y cargado en la ESP32-S3 física por COM4. Captura real de UM1 por MQTT y acuses de guardado PostgreSQL/CSV verificados; las pruebas HTTP anteriores también se conservan como evidencia.
+- Servicios Docker Compose: base de datos, migraciones y API, con datos conservados en volúmenes persistentes.
+- Esta rama usa únicamente HTTP/HTTPS. La implementación MQTT y sus evidencias se conservan en la rama `main`.
+- Pruebas backend de HTTP, integridad y CSV en `backend/tests`; ver [validación](docs/validation.md).
+- Captura real de UM1 por HTTP en la LAN verificada. El envío HTTPS del ESP32 físico hacia AWS está pendiente de cargar y probar.
 - Guía de instalación en Ubuntu Server con Oracle VirtualBox disponible; la ejecución y validación en esa VM están pendientes.
-- AWS: aplicación pública desplegada en `3.231.16.96`, PostgreSQL en EC2 privada, dashboard HTTPS con contraseña y broker MQTT TLS en 8883. ESP32-S3 cargado y captura física de UM1 confirmada en AWS, con acuses de guardado y coincidencia PostgreSQL/CSV. Temporizador de certificados activo y primera ejecución automática correcta.
+- AWS: aplicación pública en `3.231.16.96`, PostgreSQL en EC2 privada, dashboard HTTPS con contraseña e ingestión POST HTTPS con API key. La captura física confirmada en AWS se hizo con MQTT TLS desde `main`; repetirla por HTTPS sigue pendiente. Temporizador de certificados activo y primera ejecución automática correcta.
 
 Los ensayos y sus límites están registrados en [validación](docs/validation.md), [captura física](docs/real-device.md) y [recuperación de Docker](docs/docker-recovery.md). La recuperación controlada tras interrupciones de Wi-Fi, la estabilidad prolongada y las pruebas en vehículo siguen pendientes.
 
 ## Instalación en AWS: dos EC2
 
-Seguir la [guía de aplicación pública HTTPS y MQTT TLS](deploy/aws-app/README.md) para la IP elástica `3.231.16.96` y la [guía de PostgreSQL privado](deploy/aws-db/README.md) para `192.168.1.142`. La aplicación se conecta a la base por la VPC. El dashboard requiere contraseña; el broker público usa 8883 con TLS y ACL por dispositivo. Los certificados por IP se renuevan automáticamente mediante systemd.
+Seguir la [guía de aplicación pública HTTPS](deploy/aws-app/README.md) para la IP elástica `3.231.16.96` y la [guía de PostgreSQL privado](deploy/aws-db/README.md) para `192.168.1.142`. La aplicación se conecta a la base por la VPC. El dashboard requiere contraseña; el ESP32 envía por HTTPS con API key. Los certificados por IP se renuevan automáticamente mediante systemd.
 
 Usar `deploy/aws-app/compose.yaml` con su propio `.env` generado por `scripts/setup_aws_app.py`. El Compose raíz sigue destinado a la LAN. No copiar credenciales locales al repositorio ni iniciar otra BD en el servidor público. La guía incluye emisión del certificado, migraciones, registro de UM1 y cambio del ESP32 a la nube.
 
@@ -51,17 +51,6 @@ cd Actividad_1_IoT_IA
 Desde Windows o desde el ESP32 se accede mediante la **IP LAN de Ubuntu**. `localhost` en Windows apunta a Windows. El repositorio contiene las fuentes; no incluye credenciales ni el histórico de mediciones de otra instalación.
 
 ## Inicio rápido — PowerShell
-
-Para MQTT seguir [la guía de activación](docs/mqtt.md). Con Docker activo y `.env` creado:
-
-```powershell
-python scripts/setup_mqtt.py --host IP_LAN_DEL_SERVIDOR --device UM1
-docker compose --profile mqtt up -d --build
-```
-
-El script conserva claves HTTP/BD y genera credenciales MQTT privadas y `mqtt.config.h`. Instalar **MQTT by Joel Gaehwiler** en Arduino IDE y cargar el sketch para activar MQTT. Registrar UM1 como se indica abajo si la base es nueva. En Ubuntu usar `python3`; la [guía MQTT](docs/mqtt.md) explica `--sudo-docker` y la transferencia del archivo privado al PC de programación.
-
-Para ejecutar únicamente los servicios HTTP anteriores:
 
 Desde esta carpeta, con Python y Docker Desktop Linux iniciados:
 
@@ -140,21 +129,18 @@ backend/
   alembic.ini, requirements.txt, Dockerfile
 frontend/{templates/index.html,static/app.js,static/style.css}
 firmware/esp32_dht_monitor/{esp32_dht_monitor.ino,BoundedDHT.h,config.example.h}
-firmware/esp32_dht_monitor/mqtt.config.example.h
-mqtt/mosquitto.conf
-backend/app/mqtt_worker.py, backend/app/services/mqtt_ingestion.py
-scripts/{setup_env.py,setup_mqtt.py,simulate.py,reconcile_csv.py,verify_csv.py,verify_device.py,verify_mqtt.py}
+scripts/{setup_env.py,simulate.py,reconcile_csv.py,verify_csv.py,verify_device.py}
 scripts/{aws_common.py,setup_aws_app.py,aws_certificate.py,register_device.py}
 deploy/{aws-db,aws-app}/
 docs/{architecture,database,hardware,local-deployment,ubuntu-virtualbox}.md
-docs/{mqtt,real-device,wifi-troubleshooting,docker-recovery,cloud-migration,validation,files}.md
+docs/{real-device,wifi-troubleshooting,docker-recovery,cloud-migration,validation,files}.md
 compose.yaml, .env.example, .gitignore, .dockerignore
 ```
 
 Guías: [arquitectura](docs/architecture.md), [datos y verificación CSV](docs/database.md), [conexión ESP32 físico](docs/hardware.md), [diagnóstico Wi-Fi y reinicios](docs/wifi-troubleshooting.md), [Windows y Ubuntu local/VM](docs/local-deployment.md), [fase de nube, backups y seguridad](docs/cloud-migration.md), [resultados reales](docs/validation.md).
 
-Apoyo para la exposición: [problemática, arquitectura AWS y modelo de datos](docs/modelo-datos-y-problematica.md), [datos del ESP32, métodos HTTP/MQTT y consulta del CSV por SSH](docs/comunicacion-y-csv.md).
+Apoyo para la exposición: [problemática, arquitectura AWS y modelo de datos](docs/modelo-datos-y-problematica.md), [datos del ESP32, métodos HTTP y consulta del CSV por SSH](docs/comunicacion-y-csv.md).
 
-Repositorio: https://github.com/didcasva/Actividad_1_IoT_IA.git. La configuración real se mantiene en `.env`, `config.h`, `mqtt.config.h` y `.secrets/`, excluidos de Git y de las imágenes.
+Repositorio: https://github.com/didcasva/Actividad_1_IoT_IA.git. La configuración real se mantiene en `.env`, `config.h`, `http.config.h` y `.secrets/`, excluidos de Git y de las imágenes.
 
-Docker Compose utiliza el proyecto taller1 y las imágenes actividad1-iot-ia-api:local / actividad1-iot-ia-migrate:local / actividad1-iot-ia-mqtt:local; el broker usa eclipse-mosquitto:2.0. Ver [recuperación de Docker y comprobación de datos](docs/docker-recovery.md) si falla la red interna o una referencia de imagen. Los respaldos locales .backups/ están excluidos de Git y de las imágenes.
+Docker Compose utiliza el proyecto taller1 y las imágenes actividad1-iot-ia-api:local / actividad1-iot-ia-migrate:local. Ver [recuperación de Docker y comprobación de datos](docs/docker-recovery.md) si falla la red interna o una referencia de imagen. Los respaldos locales .backups/ están excluidos de Git y de las imágenes.

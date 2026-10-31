@@ -1,7 +1,5 @@
 # Instalación en Ubuntu Server con Oracle VirtualBox
 
-Para incorporar el nuevo requisito MQTT, completar la instalación base de esta guía y después seguir [activación del broker y topics](mqtt.md). El perfil MQTT agrega Mosquitto/receptor y se activa con `sudo docker compose --profile mqtt up -d --build` después de generar sus archivos privados. Las instrucciones de firmware HTTP de esta guía corresponden al transporte anterior; para MQTT usar `mqtt.config.h` y los pasos de la guía enlazada. Para detener todos los servicios, incluir `--profile mqtt`.
-
 Esta guía despliega la versión local actual de Ruta Salud en una VM nueva. El ESP32 envía por Wi-Fi a la IP de Ubuntu; FastAPI, PostgreSQL y el CSV se ejecutan allí con Docker Compose. No hace falta instalar PostgreSQL ni las dependencias Python de la aplicación directamente en Ubuntu.
 
 El repositorio no contiene las mediciones de Windows, `.env`, credenciales Wi-Fi ni `config.h`. Ubuntu tendrá una base nueva. Los datos existentes de Windows permanecen en sus volúmenes; trasladar ese histórico requiere una migración aparte.

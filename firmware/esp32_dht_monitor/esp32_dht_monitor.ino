@@ -6,22 +6,13 @@
 #include <esp_system.h>
 #include <time.h>
 #include "config.h"
-#if __has_include("mqtt.config.h")
-#include "mqtt.config.h"
+#if __has_include("http.config.h")
+#include "http.config.h" // Configuracion AWS: reemplaza API_URL y API_KEY de config.h.
 #endif
-#ifdef MQTT_HOST
-#include <MQTT.h>
-#if MQTT_TLS
+
+#ifdef API_CA_CERT
 #include <WiFiClientSecure.h>
-WiFiClientSecure mqttNetwork;
-#else
-WiFiClient mqttNetwork;
-#endif
-MQTTClient mqtt(1024);
-String telemetryTopic, ackTopic, statusTopic;
-bool pendingAck=false;
-char ackBoot[33];
-uint32_t ackSequence=0, nextMqtt=0, mqttBackoff=1000;
+WiFiClientSecure apiNetwork;
 #endif
 
 BoundedDHT dht(DHT_PIN, DHT_TYPE);
@@ -67,50 +58,6 @@ void removeHead() {
   memmove(queueData.items,queueData.items+1,(--queueData.count)*sizeof(Sample));
   persist(); backoff=1000; nextSend=millis()+100;
 }
-#ifdef MQTT_HOST
-void onMqttMessage(String &topic, String &payload) {
-  // La biblioteca puede invocar este callback durante publish QoS 1.
-  // Solo registrar el ACK: no publicar, suscribir ni modificar la cola aqui.
-  if(topic!=ackTopic || payload.length()>512) return;
-  JsonDocument doc;
-  if(deserializeJson(doc,payload)) return;
-  if(strcmp(doc["status"]|"","stored")!=0 ||
-     strcmp(doc["device_code"]|"",DEVICE_CODE)!=0 ||
-     !doc["sequence_number"].is<uint32_t>()) return;
-  const char* boot=doc["boot_id"]|"";
-  if(strlen(boot)!=32) return;
-  strcpy(ackBoot,boot); ackSequence=doc["sequence_number"].as<uint32_t>(); pendingAck=true;
-}
-void consumeMqttAck() {
-  if(!pendingAck) return;
-  pendingAck=false;
-  if(queueData.count && queueData.items[0].seq==ackSequence &&
-     strcmp(queueData.items[0].boot,ackBoot)==0) {
-    removeHead();
-    Serial.printf("[MQTT] Guardado confirmado en PostgreSQL/CSV; pendientes=%lu\n",(unsigned long)queueData.count);
-  }
-}
-void maintainMqtt(uint32_t now) {
-  if(WiFi.status()!=WL_CONNECTED) return;
-  mqtt.loop();
-  consumeMqttAck();
-  if(mqtt.connected() || !due(now,nextMqtt)) return;
-  String id="rutasalud-"+WiFi.macAddress(); id.replace(":","");
-  if(mqtt.connect(id.c_str(),MQTT_USERNAME,MQTT_PASSWORD)) {
-    if(mqtt.subscribe(ackTopic,1) && mqtt.publish(statusTopic,"online",true,1)) {
-      Serial.println("[MQTT] Conectado y suscrito al topic de confirmacion");
-      mqttBackoff=1000; nextSend=millis();
-    } else {
-      mqtt.disconnect();
-      Serial.println("[MQTT] Fallo al preparar suscripcion/estado");
-    }
-  } else {
-    Serial.printf("[MQTT] Conexion pendiente: error=%d, retorno=%d\n",mqtt.lastError(),mqtt.returnCode());
-  }
-  nextMqtt=millis()+mqttBackoff;
-  if(!mqtt.connected()) mqttBackoff=mqttBackoff<30000?mqttBackoff*2:60000;
-}
-#endif
 void setup() {
   Serial.begin(115200);
   delay(200);
@@ -132,30 +79,17 @@ void setup() {
   nextWifi = millis() + 30000; // Dar tiempo al primer intento y a DHCP.
   Serial.println("[WiFi] Conexion iniciada en banda 2.4 GHz; no se imprimen credenciales");
   configTime(0,0,"pool.ntp.org","time.google.com");
-#ifdef MQTT_HOST
-  telemetryTopic=String("rutasalud/")+DEVICE_CODE+"/telemetria";
-  ackTopic=String("rutasalud/")+DEVICE_CODE+"/ack";
-  statusTopic=String("rutasalud/")+DEVICE_CODE+"/estado";
-#if MQTT_TLS
-  mqttNetwork.setCACert(MQTT_CA_CERT); // Validacion CA y nombre; nunca setInsecure().
-  mqttNetwork.setHandshakeTimeout(3);
-#endif
-  mqttNetwork.setTimeout(2000);
-  mqtt.begin(MQTT_HOST,MQTT_PORT,mqttNetwork);
-  mqtt.setOptions(30,true,1500);
-  mqtt.onMessage(onMqttMessage);
-  mqtt.setWill(statusTopic.c_str(),"offline",true,1);
-  Serial.println("[BOOT] Transporte=MQTT; se espera acuse de guardado antes de retirar cada muestra");
+#ifdef API_CA_CERT
+  apiNetwork.setCACert(API_CA_CERT); // Validacion CA y nombre; nunca setInsecure().
+  apiNetwork.setHandshakeTimeout(3);
+  Serial.println("[BOOT] Transporte=HTTPS; cada muestra se retira al recibir respuesta 2xx");
 #else
-  Serial.println("[BOOT] Transporte=HTTP; generar mqtt.config.h para activar MQTT");
+  Serial.println("[BOOT] Transporte=HTTP sin cifrar; solo para LAN");
 #endif
   nextRead=millis()+2000;
 }
 void loop() {
   uint32_t now=millis();
-#ifdef MQTT_HOST
-  maintainMqtt(now);
-#endif
   if(WiFi.status()!=WL_CONNECTED && due(now,nextWifi)) {
     Serial.printf("[WiFi] Sin IP. Estado=%d, uptime=%lu s, heap libre=%lu bytes\n",
       (int)WiFi.status(),(unsigned long)(now/1000),(unsigned long)ESP.getFreeHeap());
@@ -186,17 +120,14 @@ void loop() {
     if(s.epoch) { time_t epoch=s.epoch; struct tm utc; gmtime_r(&epoch,&utc); char stamp[24]; strftime(stamp,sizeof(stamp),"%Y-%m-%dT%H:%M:%SZ",&utc); doc["measured_at"]=stamp; }
     else doc["measured_at"]=nullptr; // Sin NTP: servidor usa recepción; no inventar fecha histórica.
     String body; serializeJson(doc,body);
-#ifdef MQTT_HOST
-    if(!mqtt.connected()) { delay(5); return; }
-    const bool published=mqtt.publish(telemetryTopic,body,false,1);
-    Serial.printf("[MQTT] Publicacion=%s; pendientes=%lu; esperando acuse de la aplicacion\n",
-      published?"aceptada por broker":"pendiente",(unsigned long)queueData.count);
-    // PUBACK solo confirma broker. La muestra permanece en NVS hasta el ACK
-    // de aplicacion con la misma unidad, boot_id y sequence_number.
-    backoff=backoff<30000?backoff*2:60000;
+#ifdef API_CA_CERT
+    HTTPClient http; http.setConnectTimeout(3000); http.setTimeout(5000); // Internet y TLS: mas margen que en LAN.
+    http.begin(apiNetwork,API_URL);
 #else
     HTTPClient http; http.setConnectTimeout(1500); http.setTimeout(2000);
-    http.begin(API_URL); http.addHeader("Content-Type","application/json"); http.addHeader("X-API-Key",API_KEY);
+    http.begin(API_URL);
+#endif
+    http.addHeader("Content-Type","application/json"); http.addHeader("X-API-Key",API_KEY);
     int code=http.POST(body); Serial.printf("POST %d, pendientes %lu\n",code,(unsigned long)queueData.count);
     http.end();
     if(code>=200 && code<300) {
@@ -205,7 +136,6 @@ void loop() {
       // También conserva 4xx para que el operador corrija credenciales/configuración.
       backoff=backoff<30000?backoff*2:60000;
     }
-#endif
     nextSend=millis()+backoff;
   }
   delay(5); // Cede CPU; las operaciones de red tienen tiempo de espera acotado.

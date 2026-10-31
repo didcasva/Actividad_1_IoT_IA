@@ -91,3 +91,11 @@ Antes de la carga, la API AWS no tenía lecturas para UM1. Tras cargar se observ
 Comprobación remota `verify_csv.py`: siete mediciones PostgreSQL/CSV exactamente coincidentes en ese instante; el sensor siguió enviando después. No se utilizó simulador ni se publicaron muestras sintéticas en la base AWS. El histórico LAN se conservó en su entorno independiente. Los registros de Serial y ACK están en `.backups/aws-migration`, fuera del repositorio.
 
 Se consultó systemd por SSH: timer `rutasalud-cert-renew.timer` activo; servicio de renovación con `Result=success`, `ExecMainStatus=0` y primera ejecución a las 18:55:55 UTC (13:55:55 America/Bogota). Esto confirma la ejecución programada de comprobación/recarga. No se forzó la renovación de un certificado todavía vigente ni se validó su sustitución tras días de operación. Siguen pendientes estabilidad prolongada, pérdida real de Wi-Fi, apagado con cola y ensayo en vehículo; las pruebas locales de recarga no sustituyen esos ensayos.
+
+## Rama solo HTTP — 30 de octubre de 2026
+
+En la rama `actividad-1-http` se retiraron Mosquitto, el receptor y el código MQTT del firmware, y se agregó el envío POST por HTTPS con validación de CA mediante `http.config.h`. Las secciones anteriores sobre MQTT se conservan como historial: esa implementación sigue en `main`.
+
+Firmware compilado con `arduino-cli`, core esp32 3.3.12, flash 16 MB, PSRAM deshabilitada y USB CDC habilitado, en sus dos variantes: HTTPS (binario de 1024464 bytes, con `http.config.h` ficticio) y HTTP (binario de 1024928 bytes). Pruebas backend con SQLite: 15 pasaron, una advertencia de deprecación de TestClient/httpx. `docker compose config` pasó en el Compose raíz y en el de AWS. `setup_aws_app.py` se ejecutó con Docker simulado y valores ficticios: genera solo `http.config.h`, sin credenciales MQTT.
+
+No ejecutado: suite con PostgreSQL, carga en la ESP32-S3, envío HTTPS real hacia AWS y despliegue de esta rama. No se afirma que estos puntos hayan pasado.

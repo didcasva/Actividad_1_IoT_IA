@@ -1,4 +1,4 @@
-"""Issue/renew an IP certificate and atomically activate it for Caddy and Mosquitto."""
+"""Issue/renew an IP certificate and atomically activate it for Caddy."""
 import argparse
 import hashlib
 import ipaddress
@@ -114,13 +114,8 @@ def main():
         print("Par TLS preparado." if changed else "Par TLS vigente.")
         return
     # Recargar incluso si el certificado ya fue copiado: recupera un reload fallido previo.
-    for service in ("caddy", "broker"):
-        running = run(command + ["ps", "--status", "running", "-q", service], text=True, capture_output=True).stdout.strip()
-        if running:
-            if service == "caddy":
-                run(command + ["exec", "-T", service, "caddy", "reload", "--force", "--config", "/etc/caddy/Caddyfile"])
-            else:
-                run(command + ["kill", "-s", "HUP", service])
+    if run(command + ["ps", "--status", "running", "-q", "caddy"], text=True, capture_output=True).stdout.strip():
+        run(command + ["exec", "-T", "caddy", "caddy", "reload", "--force", "--config", "/etc/caddy/Caddyfile"])
     print("Par TLS actualizado y recargado." if changed else "Certificado vigente; recargas comprobadas.")
 
 

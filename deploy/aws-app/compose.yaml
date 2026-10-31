@@ -4,7 +4,7 @@ x-app: &app
   build:
     context: ../..
     dockerfile: backend/Dockerfile
-  environment: &app-env
+  environment:
     DATABASE_URL: ${DATABASE_URL:?Ejecutar setup_aws_app.py}
     API_KEY: ${API_KEY:?Ejecutar setup_aws_app.py}
     CSV_PATH: /data/readings.csv
@@ -25,46 +25,6 @@ services:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 15s
       timeout: 10s
-      retries: 5
-    restart: unless-stopped
-  mqtt-worker:
-    <<: *app
-    profiles: [app]
-    environment:
-      <<: *app-env
-      MQTT_HOST: broker
-      MQTT_PORT: 1883
-      MQTT_WORKER_USERNAME: ${MQTT_WORKER_USERNAME:?Ejecutar setup_aws_app.py}
-      MQTT_WORKER_PASSWORD: ${MQTT_WORKER_PASSWORD:?Ejecutar setup_aws_app.py}
-    command: [python, -m, app.mqtt_worker]
-    volumes: [csv_data:/data]
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      broker:
-        condition: service_healthy
-    healthcheck:
-      test: [CMD, python, -m, app.mqtt_worker, --healthcheck]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-  broker:
-    profiles: [app]
-    image: eclipse-mosquitto:2.0
-    ports: ["${PUBLIC_BIND_IP:-0.0.0.0}:${MQTT_TLS_PORT:-8883}:8883"]
-    environment:
-      MQTT_WORKER_USERNAME: ${MQTT_WORKER_USERNAME:?Ejecutar setup_aws_app.py}
-      MQTT_WORKER_PASSWORD: ${MQTT_WORKER_PASSWORD:?Ejecutar setup_aws_app.py}
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ../../.secrets/aws-mosquitto:/mosquitto/secrets:ro
-      - ../../.secrets/aws-tls:/tls:ro
-      - mqtt_data:/mosquitto/data
-    healthcheck:
-      test: [CMD-SHELL, 'mosquitto_sub -h 127.0.0.1 -u "$$MQTT_WORKER_USERNAME" -P "$$MQTT_WORKER_PASSWORD" -t "rutasalud/+/telemetria" -q 1 -E -W 5 -i rutasalud-health']
-      interval: 15s
-      timeout: 8s
       retries: 5
     restart: unless-stopped
   caddy:
@@ -103,7 +63,6 @@ services:
       - acme_webroot:/var/www/certbot
 volumes:
   csv_data:
-  mqtt_data:
   acme_webroot:
   caddy_data:
   caddy_config:

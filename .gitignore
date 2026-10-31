@@ -9,3 +9,4 @@ data/
 .secrets/
 firmware/**/config.h
 firmware/**/mqtt.config.h
+firmware/**/http.config.h
